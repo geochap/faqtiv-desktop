@@ -1,0 +1,148 @@
+#root {
+  margin: 0 auto;
+  width: 100vw;
+  height: 100vh;
+}
+
+.cs-chat-container {
+  max-height: 100vh;
+}
+.cs-message-list {
+  padding: 20px 10px 25px 10px;
+}
+.cs-message-group__content{
+  margin-bottom: 10px;
+}
+
+.cs-message__content {
+  white-space: normal !important;
+  padding: 0.6em 1.5em !important;
+}
+.cs-message__content .btn {
+  color: #6c757d;
+}
+.cs-message__content ul {
+  margin-bottom: 12px;
+}
+
+.cs-conversation__delete-btn {
+  color: #2b6a9b;
+  border-radius: 15px;
+  padding: 0;
+  height: 20px;
+  width: 20px;
+}
+.cs-conversation__delete-btn:hover {
+  color: rgba(var(--bs-light-rgb), 0.9);
+  background-color: rgba(94, 93, 107, 0.3);
+}
+.cs-conversation__delete-btn:active {
+  border-color: transparent !important;
+  color: rgba(var(--bs-light-rgb), 0.9) !important;
+  background-color: rgba(94, 93, 107, 0.5) !important;
+}
+.cs-conversation__delete-btn > svg {
+  vertical-align: text-top;
+}
+
+.cs-typing-indicator {
+  left: 15px !important;
+}
+
+.scrollbar-container,
+.cs-conversation {
+  background-color: rgba(var(--bs-light-rgb), 0.9) !important;
+}
+.cs-message__content,
+.cs-message-input__content-editor,
+.cs-message-input__content-editor-wrapper {
+  background-color: rgba(244, 244, 244) !important;
+}
+.cs-conversation:hover,
+.cs-conversation.cs-conversation--active
+{
+  background-color: rgb(226, 226, 226) !important;
+}
+.cs-conversation.cs-conversation--active .cs-conversation__name {
+  color: black !important;
+}
+.cs-conversation__name {
+  height: 100%;
+  line-height: 2.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cs-conversation__info,
+.cs-conversation.cs-conversation--active .cs-conversation__info {
+  display: none;
+}
+
+.cs-chat-container,
+.cs-message-list,
+.cs-message-list__scroll-wrapper {
+  background-color: white !important;
+}
+
+.cs-message-input {
+  border: none !important;
+}
+.cs-button--send {
+  color: #919191 !important;
+}
+
+
+.cs-message__custom-content p {
+  margin-bottom: 20px;
+}
+.cs-message__custom-content li p {
+  margin-bottom: 3px;
+}
+.cs-message__custom-content table {
+  margin-bottom: 40px !important;
+}
+.cs-message__custom-content h1 {
+  margin: 35px 0 30px 0;
+  font-size: 28px;
+}
+.cs-message__custom-content h2 {
+  margin: 30px 0 30px 0;
+  font-size: 25px;
+}
+.cs-message__custom-content h3 {
+  margin: 25px 0;
+  font-size: 23px;
+}
+.cs-message__custom-content h4 {
+  margin: 20px 0 15px 0;
+  font-size: 20px;
+}
+
+.cs-error-message {
+  position: absolute;
+  bottom: 0;
+  margin-bottom: 0 !important;
+  width: 600px;
+  max-width: 80%;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  left: 0;
+  right: 0;
+  text-align: center;
+}
+.cs-error-message-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.cs-error-message .btn{
+  color: white;
+  padding: 0;
+  line-height: 0;
+  margin-left: 10px;
+}
+.cs-error-message .cs-message__content {
+  border-radius: 5px !important;
+  background-color: crimson !important;
+  color: white !important;
+}
