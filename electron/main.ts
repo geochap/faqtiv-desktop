@@ -343,3 +343,13 @@ async function updateConfigFile() {
 
   fs.writeFileSync(configPath, yaml.dump(config), 'utf8')
 }
+
+ipcMain.on('run-ad-hoc-task', async (event, agentId, description) => {
+  try {
+    const result = await executeAgentCommand(agentId, `faqtiv run-ad-hoc-task "${description}"`)
+
+    event.reply('run-ad-hoc-task-reply', result)
+  } catch (error: any) {
+    event.reply('run-ad-hoc-task-reply', { error: error.message })
+  }
+})

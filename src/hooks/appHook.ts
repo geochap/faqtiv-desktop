@@ -1,6 +1,6 @@
 import { createContext, useCallback, useEffect, useState } from 'react'
 import { Agent, AgentTask, FDConfig, OpenAIConfig } from '../types'
-import { AssistantTools, generateToolsFromAgentTasks } from '../ai/tools'
+import { AssistantTools, generateToolsFromAgentTasks, appTools } from '../ai/tools'
 
 type Page = 'Home' | 'Agents'
 
@@ -54,10 +54,26 @@ const useAppHook = () => {
   const [openConfigModal, setOpenConfigModal] = useState<boolean>(false)
   const [assistantTools, setAssistantTools] = useState<AssistantTools>({})
 
-  const callAssistantTool = async (name: string, parameters: string[]) => {
+  const callAssistantTool = async (name: string, parameters: Record<string, string>) => {
     if (!assistantTools[name]) {
       throw new Error(`Tool not found: ${name}`)
     }
+
+    if (name === 'run-ad-hoc-task') {
+      console.log('Run ad hoc task: ', parameters)
+      return new Promise((resolve, reject) => {
+        window.ipcRenderer.send('run-ad-hoc-task', parameters.agentId, parameters.description)
+        window.ipcRenderer.once('run-ad-hoc-task-reply', (_event, response) => {
+          if (response.error) {
+            console.error('Failed to run ad hoc task:', response.error)
+            reject(response.error)
+          } else {
+            resolve(response)
+          }
+        })
+      })
+    }
+
     const { agentId, taskName, params } = assistantTools[name]._getCallParams(parameters)
 
     return new Promise((resolve, reject) => {
@@ -74,6 +90,7 @@ const useAppHook = () => {
   }
 
   const getToolSchemas = () => {
+    console.log(Object.values(assistantTools).map((t) => t.getOpenAISchema()))
     return Object.values(assistantTools).map((t) => t.getOpenAISchema())
   }
 
@@ -188,6 +205,7 @@ const useAppHook = () => {
             const initializedAgents = data.config.agents.map(initializeAgent)
             setAgents(initializedAgents)
           }
+          setAssistantTools((prev) => ({ ...prev, ...appTools }))
         } catch (e) {
           console.error('Failed to read config')
           console.error(e)
