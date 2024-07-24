@@ -211,6 +211,7 @@ export class AIAssistant {
     let textResponseComplete = false // flag to determine if incoming stream is now the code block
     let messageDonePromiseResolve: (data: AIAssistantResponse) => void
     let response = ''
+    let cancelling = false
 
     const messageDonePromise: Promise<AIAssistantResponse> = new Promise((resolve) => {
       messageDonePromiseResolve = resolve
@@ -265,7 +266,9 @@ export class AIAssistant {
           //@ts-expect-error it can include id
           if (!runId && e.data && e.data.id.includes('run_')) runId = e.data.id
 
-          if (token && token.isCancelled && runId) {
+          if (token && token.isCancelled && runId && !cancelling) {
+            cancelling = true
+
             const { id } = e.data as Run
             await this.openai.beta.threads.runs.cancel(this.threadId!, runId || id)
             return resolve({ runId, response, data: { files: [] } })
