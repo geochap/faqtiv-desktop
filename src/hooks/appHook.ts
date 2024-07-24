@@ -90,7 +90,6 @@ const useAppHook = () => {
   }
 
   const getToolSchemas = () => {
-    console.log(Object.values(assistantTools).map((t) => t.getOpenAISchema()))
     return Object.values(assistantTools).map((t) => t.getOpenAISchema())
   }
 

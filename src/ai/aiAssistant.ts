@@ -210,6 +210,7 @@ export class AIAssistant {
     let requiredAction: OpenAI.Beta.Threads.Runs.Run.RequiredAction | null
     let textResponseComplete = false // flag to determine if incoming stream is now the code block
     let messageDonePromiseResolve: (data: AIAssistantResponse) => void
+    let response = ''
 
     const messageDonePromise: Promise<AIAssistantResponse> = new Promise((resolve) => {
       messageDonePromiseResolve = resolve
@@ -226,15 +227,17 @@ export class AIAssistant {
 
           if (reachingStartOfJsonBlock) {
             // send the last chunk of text before the code block starts
-            onDelta(chunk.replaceAll('⁙', ''))
+            const text = chunk.replaceAll('⁙', '')
+            onDelta(text)
+            response += text
             textResponseComplete = true
           } else {
             onDelta(chunk)
+            response += chunk
           }
         })
         .on('messageDone', (message) => {
           if (token && token.isCancelled) return
-          let response
           let data = {
             files: []
           }
@@ -246,7 +249,6 @@ export class AIAssistant {
               const contents = text.value.split('⁙⁙⁙')
 
               // Text is expected to be markdown followed by json surrounded by ⁙⁙⁙
-              response = contents[0]
               if (contents.length > 0 && contents[1]) {
                 data = JSON.parse(contents[1].trim())
               }
@@ -260,13 +262,15 @@ export class AIAssistant {
           messageDonePromiseResolve({ response, data })
         })
         .on('event', async (e) => {
-          //todo: reliably get run id to cancel run
-          if (token && token.isCancelled) {
+          //@ts-expect-error it can include id
+          if (!runId && e.data && e.data.id.includes('run_')) runId = e.data.id
+
+          if (token && token.isCancelled && runId) {
             const { id } = e.data as Run
-            stream.abort()
             await this.openai.beta.threads.runs.cancel(this.threadId!, runId || id)
+            return resolve({ runId, response, data: { files: [] } })
           }
-          if (e.event == 'thread.run.requires_action') {
+          if ((!token || !token.isCancelled) && e.event == 'thread.run.requires_action') {
             const { id, required_action } = e.data
             runId = id
             requiredAction = required_action
@@ -312,7 +316,6 @@ export class AIAssistant {
       // Temporary patch for multi_tool_use.parallel bug: parse the arguments for multi_tool_use.parallel
       if (token) token.throwIfCancelled()
       if (toolCall.function.name === 'multi_tool_use.parallel') {
-        console.log(toolCall)
         const { tool_uses } = JSON.parse(toolCall.function.arguments)
 
         for (const use of tool_uses) {
