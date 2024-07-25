@@ -320,7 +320,7 @@ export const Chat = ({ user, assistantUser, storage }: ChatProps) => {
                         >
                           <Message.CustomContent>
                             <Markdown>{String(response)}</Markdown>
-                            {data.files.length > 0 && (
+                            {data.files?.length > 0 && (
                               <div className="cs-message-files">
                                 {data.files.map(
                                   (f: AIAssistantResponse['data']['files'][0], index: number) => (
