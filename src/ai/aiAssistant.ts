@@ -144,8 +144,8 @@ export class AIAssistant {
       content
     })
     let requiredAction: OpenAI.Beta.Threads.Runs.Run.RequiredAction | undefined
-    let response: string
-    let data: AIAssistantResponse['data']
+    let response = ''
+    let data: AIAssistantResponse['data'] = { files: [] }
     let runId: string | undefined
     let aborted = false
 
@@ -160,7 +160,7 @@ export class AIAssistant {
       this.currentRunId = result.runId
       runId = result.runId
       requiredAction = result.requiredAction
-      response = result.response
+      response += '\n' + result.response
       data = result.data
 
       do {
@@ -174,7 +174,7 @@ export class AIAssistant {
           )
           this.currentRunId = toolResult.runId
           requiredAction = toolResult.requiredAction
-          response = toolResult.response
+          response += '\n' + toolResult.response
           data = toolResult.data
         }
       } while (this.currentRunId && requiredAction && requiredAction.submit_tool_outputs)
