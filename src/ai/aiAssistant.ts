@@ -137,12 +137,30 @@ export class AIAssistant {
     callTool: (name: string, parameters: string[]) => any
   ): Promise<AIAssistantResponse> {
     this.cancellationToken = new CancellationToken()
-
     const token = this.cancellationToken
-    await this.openai.beta.threads.messages.create(this.threadId!, {
-      role: 'user',
-      content
-    })
+
+    const createMessage = async () => {
+      try {
+        await this.openai.beta.threads.messages.create(this.threadId!, {
+          role: 'user',
+          content
+        })
+      } catch (e: any) {
+        if (e.message.includes('is active')) {
+          // Cancel the active run and try again
+          const runs = await this.openai.beta.threads.runs.list(this.threadId!)
+          const activeRun = runs.data.find((run) => run.status === 'requires_action')
+          if (activeRun) {
+            await this.openai.beta.threads.runs.cancel(this.threadId!, activeRun.id)
+          }
+          await createMessage()
+        } else {
+          throw e
+        }
+      }
+    }
+    await createMessage()
+
     let requiredAction: OpenAI.Beta.Threads.Runs.Run.RequiredAction | undefined
     let response = ''
     let data: AIAssistantResponse['data'] = { files: [] }
