@@ -178,8 +178,8 @@ export class AIAssistant {
       this.currentRunId = result.runId
       runId = result.runId
       requiredAction = result.requiredAction
-      response += '\n' + result.response
-      data = result.data
+      if (result.response) response += '\n' + result.response
+      if (result.data) data = result.data
 
       do {
         if (this.currentRunId && requiredAction && requiredAction.submit_tool_outputs) {
@@ -192,8 +192,8 @@ export class AIAssistant {
           )
           this.currentRunId = toolResult.runId
           requiredAction = toolResult.requiredAction
-          response += '\n' + toolResult.response
-          data = toolResult.data
+          if (toolResult.response) response += '\n' + toolResult.response
+          if (toolResult.data) data = { ...data, ...toolResult.data }
         }
       } while (this.currentRunId && requiredAction && requiredAction.submit_tool_outputs)
     } finally {
@@ -331,7 +331,7 @@ export class AIAssistant {
     callTool: (name: string, parameters: any) => any,
     token?: CancellationToken
   ) {
-    const toolCallResults = []
+    const toolCallResults: any[] = []
 
     for await (const toolCall of toolCalls) {
       // Temporary patch for multi_tool_use.parallel bug: parse the arguments for multi_tool_use.parallel
@@ -344,7 +344,7 @@ export class AIAssistant {
 
           try {
             const result = await callTool(use.recipient_name, use.parameters)
-            output = '\njson\n' + JSON.stringify(result, null, 2) + '\n\n'
+            output = '\n```json\n' + JSON.stringify(result, null, 2) + '\n```\n'
           } catch (e: any) {
             output = `Tool call failed: ${e.message}`
           }
@@ -363,7 +363,7 @@ export class AIAssistant {
             toolCall.function.name,
             JSON.parse(toolCall.function.arguments)
           )
-          output = '\njson\n' + JSON.stringify(result, null, 2) + '\n\n'
+          output = '\n```json\n' + JSON.stringify(result, null, 2) + '\n```\n'
         } catch (e: any) {
           output = `Tool call failed: ${e.message}`
         }
@@ -375,15 +375,34 @@ export class AIAssistant {
       }
     }
 
-    const streamResult = await this._processStream(
-      this.openai.beta.threads.runs.submitToolOutputsStream(this.threadId!, runId, {
-        tool_outputs: toolCallResults
-      }),
-      onDelta,
-      token
-    )
-
-    return streamResult
+    return new Promise<AIAssistantResponse>((resolve, reject) => {
+      const submitToolsStream = this.openai.beta.threads.runs
+        .submitToolOutputsStream(this.threadId!, runId, { tool_outputs: toolCallResults })
+        .on('connect', () => {
+          resolve(this._processStream(submitToolsStream, onDelta, token))
+        })
+        .on('error', (error) => {
+          if (error.message.includes('400')) {
+            console.log('Error submitting tool outputs:', error)
+            const errorIndexMatch = error.message.match(/tool_outputs\[(\d+)\]/)
+            if (errorIndexMatch) {
+              const errorIndex = parseInt(errorIndexMatch[1], 10)
+              toolCallResults[errorIndex].output = `Error submitting tool outputs: ${error.message}`
+            }
+            resolve(
+              this._processStream(
+                this.openai.beta.threads.runs.submitToolOutputsStream(this.threadId!, runId, {
+                  tool_outputs: toolCallResults
+                }),
+                onDelta,
+                token
+              )
+            )
+          } else {
+            reject(error)
+          }
+        })
+    })
   }
 
   async destroy() {
