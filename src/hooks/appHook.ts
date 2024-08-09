@@ -9,11 +9,11 @@ export const AppContext = createContext<{
   config?: FDConfig
   openaiConfig?: OpenAIConfig
   agents: Agent[]
-  openConfigModal?: boolean
+  openExportModal?: boolean
   assistantTools: AssistantTools
-  toggleConfigModal: () => void
+  toggleExportModal: () => void
   setConfig: (config: FDConfig) => void
-  callAssistantTool: (name: string, parameters: string[]) => Promise<any>
+  callAssistantTool: (name: string, parameters: Record<string, string>) => Promise<any>
   getToolSchemas: () => any[]
   addAgent: (agent: Agent) => Promise<void | string>
   deleteAgent: (agentId: string) => Promise<void | string>
@@ -22,7 +22,7 @@ export const AppContext = createContext<{
   activePage: 'Home',
   agents: [],
   assistantTools: {},
-  toggleConfigModal: () => {
+  toggleExportModal: () => {
     throw new Error('Not implemented')
   },
   setConfig: () => {
@@ -51,8 +51,8 @@ const useAppHook = () => {
   const [config, setConfig] = useState<FDConfig>()
   const [openaiConfig, setOpenAIConfig] = useState<OpenAIConfig>()
   const [agents, setAgents] = useState<Agent[]>([])
-  const [openConfigModal, setOpenConfigModal] = useState<boolean>(false)
   const [assistantTools, setAssistantTools] = useState<AssistantTools>({})
+  const [openExportModal, setOpenExportModal] = useState<boolean>(false)
 
   const callAssistantTool = async (name: string, parameters: Record<string, string>) => {
     if (!assistantTools[name]) {
@@ -93,8 +93,8 @@ const useAppHook = () => {
     return Object.values(assistantTools).map((t) => t.getOpenAISchema())
   }
 
-  const toggleConfigModal = () => {
-    setOpenConfigModal((prev) => !prev)
+  const toggleExportModal = () => {
+    setOpenExportModal((prev) => !prev)
   }
 
   const initializeAgent = (agent: Agent): Agent => ({
@@ -213,7 +213,9 @@ const useAppHook = () => {
     }
     window.ipcRenderer.on('change-page', (_event, page) => {
       setActivePage(page)
-      toggleConfigModal()
+    })
+    window.ipcRenderer.on('open-export-window', () => {
+      setOpenExportModal(true)
     })
     setIsInit(true)
   }, [isInit, config])
@@ -238,9 +240,9 @@ const useAppHook = () => {
     config,
     agents,
     openaiConfig,
-    openConfigModal,
     assistantTools,
-    toggleConfigModal,
+    openExportModal,
+    toggleExportModal,
     setConfig,
     callAssistantTool,
     getToolSchemas,

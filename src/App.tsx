@@ -19,6 +19,7 @@ import useAppHook, { AppContext } from './hooks/appHook'
 import { ChatService } from './ChatService'
 import { ChatLocalStorage } from './ChatLocalStorage'
 import Agents from './components/Agents/Agents'
+import { ExportModal } from './components/ExportModal/ExportModal'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const messageIdGenerator = (_message: ChatMessage<MessageContentType>) => nanoid()
@@ -74,6 +75,7 @@ function App() {
         </div>
       )}
       {provider.activePage === 'Agents' && <Agents />}
+      <ExportModal />
     </AppContext.Provider>
   )
 }

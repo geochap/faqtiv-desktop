@@ -1,6 +1,6 @@
 import OpenAI from 'openai'
 import { AssistantStream } from 'openai/lib/AssistantStream.mjs'
-import { getInstructions } from './instructions'
+import { getInstructions } from './chatInstructions'
 import { Agent } from '../types'
 import { Run } from 'openai/resources/beta/threads/index.mjs'
 
@@ -134,7 +134,7 @@ export class AIAssistant {
   async addUserMessage(
     content: string,
     onDelta: (delta: string) => void,
-    callTool: (name: string, parameters: string[]) => any
+    callTool: (name: string, parameters: Record<string, string>) => any
   ): Promise<AIAssistantResponse> {
     this.cancellationToken = new CancellationToken()
     const token = this.cancellationToken

@@ -154,6 +154,12 @@ function setupMenu() {
             win?.webContents.send('change-page', 'Agents')
           }
         },
+        {
+          label: 'Export',
+          click: () => {
+            win?.webContents.send('open-export-window')
+          }
+        },
         isMac ? { role: 'close' } : { role: 'quit' }
       ]
     },
@@ -351,5 +357,15 @@ ipcMain.on('run-ad-hoc-task', async (event, agentId, description) => {
     event.reply('run-ad-hoc-task-reply', result)
   } catch (error: any) {
     event.reply('run-ad-hoc-task-reply', { error: error.message })
+  }
+})
+
+ipcMain.on('get-agent-export-info', async (event, agentId) => {
+  try {
+    const result = await executeAgentCommand(agentId, `faqtiv export-langchain`)
+
+    event.reply('get-agent-export-info-reply', result)
+  } catch (error: any) {
+    event.reply('get-agent-export-info-reply', { error: error.message })
   }
 })
