@@ -79,6 +79,7 @@ export async function exportLangchainAgent(agents: Agent[]) {
     agents.map(async (agent) => await getExportAgentInfo({ agentId: agent.id }))
   )
   const result = langchainAgentTemplate(agentsInfo)
+  console.log(result)
 
   return result
 }
