@@ -137,15 +137,33 @@ export class AIAssistant {
     callTool: (name: string, parameters: string[]) => any
   ): Promise<AIAssistantResponse> {
     this.cancellationToken = new CancellationToken()
-
     const token = this.cancellationToken
-    await this.openai.beta.threads.messages.create(this.threadId!, {
-      role: 'user',
-      content
-    })
+
+    const createMessage = async () => {
+      try {
+        await this.openai.beta.threads.messages.create(this.threadId!, {
+          role: 'user',
+          content
+        })
+      } catch (e: any) {
+        if (e.message.includes('is active')) {
+          // Cancel the active run and try again
+          const runs = await this.openai.beta.threads.runs.list(this.threadId!)
+          const activeRun = runs.data.find((run) => run.status === 'requires_action')
+          if (activeRun) {
+            await this.openai.beta.threads.runs.cancel(this.threadId!, activeRun.id)
+          }
+          await createMessage()
+        } else {
+          throw e
+        }
+      }
+    }
+    await createMessage()
+
     let requiredAction: OpenAI.Beta.Threads.Runs.Run.RequiredAction | undefined
-    let response: string
-    let data: AIAssistantResponse['data']
+    let response = ''
+    let data: AIAssistantResponse['data'] = { files: [] }
     let runId: string | undefined
     let aborted = false
 
@@ -160,8 +178,8 @@ export class AIAssistant {
       this.currentRunId = result.runId
       runId = result.runId
       requiredAction = result.requiredAction
-      response = result.response
-      data = result.data
+      if (result.response) response += '\n' + result.response
+      if (result.data) data = result.data
 
       do {
         if (this.currentRunId && requiredAction && requiredAction.submit_tool_outputs) {
@@ -174,8 +192,8 @@ export class AIAssistant {
           )
           this.currentRunId = toolResult.runId
           requiredAction = toolResult.requiredAction
-          response = toolResult.response
-          data = toolResult.data
+          if (toolResult.response) response += '\n' + toolResult.response
+          if (toolResult.data) data = { ...data, ...toolResult.data }
         }
       } while (this.currentRunId && requiredAction && requiredAction.submit_tool_outputs)
     } finally {
@@ -210,6 +228,8 @@ export class AIAssistant {
     let requiredAction: OpenAI.Beta.Threads.Runs.Run.RequiredAction | null
     let textResponseComplete = false // flag to determine if incoming stream is now the code block
     let messageDonePromiseResolve: (data: AIAssistantResponse) => void
+    let response = ''
+    let cancelling = false
 
     const messageDonePromise: Promise<AIAssistantResponse> = new Promise((resolve) => {
       messageDonePromiseResolve = resolve
@@ -226,15 +246,17 @@ export class AIAssistant {
 
           if (reachingStartOfJsonBlock) {
             // send the last chunk of text before the code block starts
-            onDelta(chunk.replaceAll('⁙', ''))
+            const text = chunk.replaceAll('⁙', '')
+            onDelta(text)
+            response += text
             textResponseComplete = true
           } else {
             onDelta(chunk)
+            response += chunk
           }
         })
         .on('messageDone', (message) => {
           if (token && token.isCancelled) return
-          let response
           let data = {
             files: []
           }
@@ -246,7 +268,6 @@ export class AIAssistant {
               const contents = text.value.split('⁙⁙⁙')
 
               // Text is expected to be markdown followed by json surrounded by ⁙⁙⁙
-              response = contents[0]
               if (contents.length > 0 && contents[1]) {
                 data = JSON.parse(contents[1].trim())
               }
@@ -260,13 +281,17 @@ export class AIAssistant {
           messageDonePromiseResolve({ response, data })
         })
         .on('event', async (e) => {
-          //todo: reliably get run id to cancel run
-          if (token && token.isCancelled) {
+          //@ts-expect-error it can include id
+          if (!runId && e.data && e.data.id.includes('run_')) runId = e.data.id
+
+          if (token && token.isCancelled && runId && !cancelling) {
+            cancelling = true
+
             const { id } = e.data as Run
-            stream.abort()
             await this.openai.beta.threads.runs.cancel(this.threadId!, runId || id)
+            return resolve({ runId, response, data: { files: [] } })
           }
-          if (e.event == 'thread.run.requires_action') {
+          if ((!token || !token.isCancelled) && e.event == 'thread.run.requires_action') {
             const { id, required_action } = e.data
             runId = id
             requiredAction = required_action
@@ -306,13 +331,12 @@ export class AIAssistant {
     callTool: (name: string, parameters: any) => any,
     token?: CancellationToken
   ) {
-    const toolCallResults = []
+    const toolCallResults: any[] = []
 
     for await (const toolCall of toolCalls) {
       // Temporary patch for multi_tool_use.parallel bug: parse the arguments for multi_tool_use.parallel
       if (token) token.throwIfCancelled()
       if (toolCall.function.name === 'multi_tool_use.parallel') {
-        console.log(toolCall)
         const { tool_uses } = JSON.parse(toolCall.function.arguments)
 
         for (const use of tool_uses) {
@@ -320,7 +344,7 @@ export class AIAssistant {
 
           try {
             const result = await callTool(use.recipient_name, use.parameters)
-            output = '\njson\n' + JSON.stringify(result, null, 2) + '\n\n'
+            output = '\n```json\n' + JSON.stringify(result, null, 2) + '\n```\n'
           } catch (e: any) {
             output = `Tool call failed: ${e.message}`
           }
@@ -339,7 +363,7 @@ export class AIAssistant {
             toolCall.function.name,
             JSON.parse(toolCall.function.arguments)
           )
-          output = '\njson\n' + JSON.stringify(result, null, 2) + '\n\n'
+          output = '\n```json\n' + JSON.stringify(result, null, 2) + '\n```\n'
         } catch (e: any) {
           output = `Tool call failed: ${e.message}`
         }
@@ -351,15 +375,34 @@ export class AIAssistant {
       }
     }
 
-    const streamResult = await this._processStream(
-      this.openai.beta.threads.runs.submitToolOutputsStream(this.threadId!, runId, {
-        tool_outputs: toolCallResults
-      }),
-      onDelta,
-      token
-    )
-
-    return streamResult
+    return new Promise<AIAssistantResponse>((resolve, reject) => {
+      const submitToolsStream = this.openai.beta.threads.runs
+        .submitToolOutputsStream(this.threadId!, runId, { tool_outputs: toolCallResults })
+        .on('connect', () => {
+          resolve(this._processStream(submitToolsStream, onDelta, token))
+        })
+        .on('error', (error) => {
+          if (error.message.includes('400')) {
+            console.log('Error submitting tool outputs:', error)
+            const errorIndexMatch = error.message.match(/tool_outputs\[(\d+)\]/)
+            if (errorIndexMatch) {
+              const errorIndex = parseInt(errorIndexMatch[1], 10)
+              toolCallResults[errorIndex].output = `Error submitting tool outputs: ${error.message}`
+            }
+            resolve(
+              this._processStream(
+                this.openai.beta.threads.runs.submitToolOutputsStream(this.threadId!, runId, {
+                  tool_outputs: toolCallResults
+                }),
+                onDelta,
+                token
+              )
+            )
+          } else {
+            reject(error)
+          }
+        })
+    })
   }
 
   async destroy() {

@@ -1,5 +1,5 @@
 import { Fragment, HTMLAttributes, useCallback, useState, ClassAttributes } from 'react'
-import { Button, OverlayTrigger, Tooltip } from 'react-bootstrap'
+import { OverlayTrigger, Tooltip } from 'react-bootstrap'
 import { Copy } from 'lucide-react'
 import cs from 'classnames'
 import ReactMarkdown, { ExtraProps } from 'react-markdown'
@@ -43,23 +43,23 @@ const HighlightCode = (
 
   return match ? (
     <Fragment>
+      <SyntaxHighlighter {...rest} style={vscDarkPlus} language={match[1]} PreTag="div">
+        {code}
+      </SyntaxHighlighter>
       <OverlayTrigger
         show={tooltipOpen}
         placement="top"
         overlay={<Tooltip id="tooltip-top">Copied!</Tooltip>}
       >
-        <Button
-          variant="outline-secondary"
-          className="absolute right-4 top-4 cursor-pointer"
+        <button
+          style={{ float: 'right' }}
           onClick={onCopy}
           onMouseLeave={() => setTooltipOpen(false)}
+          className="btn unstyled p-0"
         >
-          <Copy />
-        </Button>
+          <Copy size={15} />
+        </button>
       </OverlayTrigger>
-      <SyntaxHighlighter {...rest} style={vscDarkPlus} language={match[1]} PreTag="div">
-        {code}
-      </SyntaxHighlighter>
     </Fragment>
   ) : (
     <code ref={ref} {...rest} className={cs('highlight', className)}>

@@ -4,8 +4,8 @@ class AssistantTool {
   schema: Record<string, any> = {}
   name = ''
   description = ''
-  agentId = ''
-  returns: Record<string, any> = {}
+  agentId: string | undefined = ''
+  returns = ''
   requiredParams: string[] = []
 
   //@ts-expect-error expected
@@ -68,6 +68,27 @@ function generateTools(agentId: string, tasks: any[]): AssistantTools {
   })
 
   return tools
+}
+
+class RunAdHocTaskTool extends AssistantTool {
+  schema = {
+    description: {
+      type: 'string',
+      description: 'Description of the new task'
+    },
+    agentId: {
+      type: 'string',
+      description: 'Id of the agent to create and run the task'
+    }
+  }
+  name = 'run-ad-hoc-task'
+  description = 'A tool for an agent to run custom tasks'
+  returns = 'any'
+  requiredParams = ['taskName', 'description', 'agentId']
+}
+
+export const appTools: AssistantTools = {
+  'run-ad-hoc-task': new RunAdHocTaskTool()
 }
 
 export function generateToolsFromAgentTasks(agentId: string, tasks: AgentTask[]) {
