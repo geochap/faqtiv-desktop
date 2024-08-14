@@ -19,30 +19,47 @@ function langchainAgentTemplate(agentsInfo: any[]) {
 import requests
 import argparse
 from typing import List, Dict, Union, Any, Optional
-from langchain_core.tools import tool
+from pydantic import create_model
+from langchain_core.tools import StructuredTool
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_openai import ChatOpenAI
 
-# Agent lib and tools dependencies
+# Agent lib and functions dependencies
 ${agentsInfo.map((agent) => agent.imports).join('\n')}
 
 # Agent libs
 ${agentsInfo.map((agent) => agent.libs).join('\n')}
 
-# Agent tools
-${agentsInfo.map((agent) => agent.tools).join('\n')}
+# Agent functions
+${agentsInfo.map((agent) => agent.functions).join('\n')}
 
-tool_functions = [
-${agentsInfo.map((agent) => agent.toolNames.map((toolName: string) => `${toolName}`).join(',\n')).join('\n')}
-]
+# Tool schemas
+tool_schemas = {
+${agentsInfo.map((agent) => agent.tool_schemas).join('\n')}
+}
+
+# Create tool instances based on schema
+def create_tools_from_schemas(schemas: Dict[str, Dict[str, Any]]) -> List[StructuredTool]:
+    tools = []
+    for name, schema in schemas.items():
+        tool = StructuredTool(
+            name=name,
+            description=schema["description"],
+            args_schema=schema["args_schema"],
+            func=schema["function"],
+            metadata={"output": schema["output"]}
+        )
+        tools.append(tool)
+    return tools
+
+# Create tools from schemas
+tools = create_tools_from_schemas(tool_schemas)
 
 promptText = """
 You are a technical assistant that answers questions using the available tools.
 
-The following schemas and guidelines are your main reference for using the tools, they indicate the arguments, return types and descriptions.
-
-${agentsInfo.map((agent) => agent.toolSignatures).join('\n')}
+The following instructions are guidelines for interpreting the tool data and composing responses from them.
 
 ${agentsInfo.map((agent) => agent.instructions).join('\n\n')}
 """
@@ -66,10 +83,10 @@ model = os.getenv('OPENAI_MODEL')
 llm = ChatOpenAI(model=model)
 
 # Define the agent
-agent = create_tool_calling_agent(llm, tool_functions, prompt)
+agent = create_tool_calling_agent(llm, tools, prompt)
 
 # Create the agent executor
-agent_executor = AgentExecutor(agent=agent, tools=tool_functions)
+agent_executor = AgentExecutor(agent=agent, tools=tools)
 
 
 # http agent
@@ -175,12 +192,41 @@ if __name__ == "__main__":
 `
 }
 
+function getRequirementsTxt(imports: string[]) {
+  const defaultImports = [
+    'langchain',
+    'langchain-openai',
+    'langchain-community',
+    'openai',
+    'uvicorn',
+    'fastapi',
+    'pydantic'
+  ]
+
+  return [...defaultImports, ...imports]
+}
+
+const instructions = `export OPENAI_API_KEY=your_api_key
+export OPENAI_MODEL=your_model
+pip install -r requirements.txt
+python agent.py --http`
+
 export async function exportLangchainAgent(agents: Agent[]) {
   const agentsInfo = await Promise.all(
     agents.map(async (agent) => await getExportAgentInfo({ agentId: agent.id }))
   )
   const result = langchainAgentTemplate(agentsInfo)
-  console.log(result)
 
-  return result
+  const imports = agentsInfo
+    .map((agent: any) => agent.imports)
+    .flat()
+    .map((imp: string) => imp.replace('import', '').trim())
+  const requirementsTxt = getRequirementsTxt(imports)
+  const code = result
+
+  return {
+    requirementsTxt: requirementsTxt.join('\n'),
+    instructions,
+    code
+  }
 }
