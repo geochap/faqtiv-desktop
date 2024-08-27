@@ -23,7 +23,12 @@ export interface ChatLocalStorageParams {
   messageIdGenerator?: MessageIdGenerator
 }
 
-export class ChatLocalStorage<ConversationData = any> implements IStorage<ConversationData> {
+export interface ILocalStorage<ConversationData = any, UserData = any>
+  extends IStorage<ConversationData, UserData> {
+  addTypingUser: (conversationId: ConversationId, typingUser: TypingUser) => void
+}
+
+export class ChatLocalStorage<ConversationData = any> implements ILocalStorage<ConversationData> {
   private readonly _groupIdGenerator: GroupIdGenerator
   private readonly _messageIdGenerator?: MessageIdGenerator
 
@@ -192,6 +197,18 @@ export class ChatLocalStorage<ConversationData = any> implements IStorage<Conver
       this.setItem('users', this.users)
     }
     return notExists
+  }
+
+  addTypingUser(conversationId: ConversationId, typingUser: TypingUser): void {
+    const [conversation, idx] = this.getConversation(conversationId)
+    if (conversation) {
+      if (typingUser.isTyping) {
+        conversation.addTypingUser(typingUser)
+      } else {
+        conversation.removeTypingUser(typingUser.userId)
+      }
+      this.replaceConversation(conversation, idx as number)
+    }
   }
 
   removeUser(userId: UserId): boolean {

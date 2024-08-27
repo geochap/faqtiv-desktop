@@ -1,10 +1,9 @@
-import { app, BrowserWindow, ipcMain, Menu, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu } from 'electron'
 // import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs'
 import yaml from 'js-yaml'
-import { exec } from 'node:child_process'
 import dotenv from 'dotenv'
 
 dotenv.config()
@@ -12,8 +11,7 @@ dotenv.config()
 // const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 import * as pkg from '../package.json'
-import { Agent, FDConfig } from '../src/types'
-import { nanoid } from 'nanoid'
+import { FDConfig } from '../src/types'
 
 // The built directory structure
 //
@@ -110,13 +108,7 @@ ipcMain.on('app-init', (event) => {
   if (!fs.existsSync(configPath)) {
     config = {
       version: pkg.version,
-      agents: [
-        {
-          id: nanoid(),
-          name: 'BankReportAgent',
-          path: '../faqtiv-agent-toolkit/examples/bank-report-demo-js'
-        }
-      ]
+      agents: []
     }
     fs.writeFileSync(configPath, yaml.dump(config), 'utf8')
   } else {
@@ -136,8 +128,6 @@ ipcMain.on('app-init', (event) => {
 })
 
 function setupMenu() {
-  const isMac = process.platform === 'darwin'
-
   const template = [
     {
       label: 'Go',
@@ -154,13 +144,7 @@ function setupMenu() {
             win?.webContents.send('change-page', 'Agents')
           }
         },
-        {
-          label: 'Export',
-          click: () => {
-            win?.webContents.send('open-export-window')
-          }
-        },
-        isMac ? { role: 'close' } : { role: 'quit' }
+        { role: 'quit' }
       ]
     },
     {
@@ -198,111 +182,6 @@ function setupMenu() {
   Menu.setApplicationMenu(menu)
 }
 
-async function executeAgentCommand(agentId: string, command: string): Promise<string> {
-  const project = config?.agents.find((agent: Agent) => agent.id === agentId)
-  if (!project) {
-    throw new Error(`Project with id ${agentId} not found`)
-  }
-
-  return new Promise((resolve, reject) => {
-    exec(command, { cwd: project.path }, (error, stdout, stderr) => {
-      if (error) {
-        reject(new Error(`Error executing command: ${stderr}`))
-      } else {
-        resolve(stdout)
-      }
-    })
-  })
-}
-
-ipcMain.on('get-agent-tasks', async (event, agentId) => {
-  const uniqueListener = `get-agent-tasks-reply-${agentId}`
-
-  try {
-    const tasks = await getAgentFAQ(agentId)
-    event.reply(uniqueListener, JSON.stringify(tasks))
-  } catch (error: any) {
-    event.reply(uniqueListener, { error: error.message })
-  }
-})
-
-async function getAgentFAQ(agentId: string): Promise<any> {
-  const tasks = await executeAgentCommand(agentId, 'faqtiv list-tasks --json')
-  const instructions = await executeAgentCommand(agentId, 'faqtiv print-desktop-instructions')
-
-  return {
-    tasks: JSON.parse(tasks),
-    instructions: instructions
-  }
-}
-
-ipcMain.on('run-agent-task', async (event, agentId, taskName, params) => {
-  try {
-    const result = await runAgentTask(agentId, taskName, params)
-    event.reply('run-agent-task-reply', result)
-  } catch (error: any) {
-    event.reply('run-agent-task-reply', { error: error.message })
-  }
-})
-
-async function runAgentTask(agentId: string, taskName: string, params: string): Promise<any> {
-  const project = config?.agents.find((agent: Agent) => String(agent.id) === String(agentId))
-  if (!project) {
-    throw new Error(`Project with id ${agentId} not found`)
-  }
-  const runParams = JSON.parse(params)
-  const command = `faqtiv run-task ${taskName} ${Object.values(runParams)
-    .map((p) => `"${p}"`)
-    .join(' ')}`
-
-  return await executeAgentCommand(agentId, command)
-}
-
-ipcMain.on('download-local-file', async (event, filePath) => {
-  try {
-    const fileContent = await readLocalFile(filePath)
-    event.reply('download-local-file-reply', { success: true, data: fileContent })
-  } catch (error: any) {
-    event.reply('download-local-file-reply', { error: error.message })
-  }
-})
-
-// Function to read a local file and return its contents
-async function readLocalFile(filePath: string): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    fs.readFile(filePath, (err, data) => {
-      if (err) {
-        reject(err)
-      } else {
-        resolve(data)
-      }
-    })
-  })
-}
-
-ipcMain.on('select-faqtiv-agent-dir', async (event) => {
-  const result = await dialog.showOpenDialog({
-    properties: ['openDirectory']
-  })
-
-  if (result.canceled) {
-    event.reply('select-faqtiv-agent-dir-reply', { error: 'Directory selection was canceled' })
-  } else {
-    const selectedPath = result.filePaths[0]
-    const configFile = path.join(selectedPath, 'faqtiv_config.yml')
-    const faqtivDir = path.join(selectedPath, '.faqtiv')
-
-    if (fs.existsSync(configFile) && fs.existsSync(faqtivDir)) {
-      event.reply('select-faqtiv-agent-dir-reply', { path: selectedPath })
-    } else {
-      event.reply('select-faqtiv-agent-dir-reply', {
-        error: 'Not an agent directory'
-      })
-    }
-  }
-})
-
-// New IPC handlers for adding, updating, and deleting agents
 ipcMain.on('add-agent', async (event, agent) => {
   try {
     config?.agents.push(agent)
@@ -349,23 +228,3 @@ async function updateConfigFile() {
 
   fs.writeFileSync(configPath, yaml.dump(config), 'utf8')
 }
-
-ipcMain.on('run-ad-hoc-task', async (event, agentId, description) => {
-  try {
-    const result = await executeAgentCommand(agentId, `faqtiv run-ad-hoc-task "${description}"`)
-
-    event.reply('run-ad-hoc-task-reply', result)
-  } catch (error: any) {
-    event.reply('run-ad-hoc-task-reply', { error: error.message })
-  }
-})
-
-ipcMain.on('get-agent-export-info', async (event, agentId) => {
-  try {
-    const result = await executeAgentCommand(agentId, `faqtiv export-langchain`)
-
-    event.reply('get-agent-export-info-reply', result)
-  } catch (error: any) {
-    event.reply('get-agent-export-info-reply', { error: error.message })
-  }
-})

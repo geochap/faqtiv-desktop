@@ -14,10 +14,7 @@ export type AgentTask = {
 export type Agent = {
   id: string
   name: string
-  path: string
-  tasks?: AgentTask[]
-  toolSchemas?: []
-  instructions?: string
+  url: string
 }
 
 export type FDConfig = {
