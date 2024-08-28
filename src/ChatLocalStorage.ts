@@ -26,6 +26,7 @@ export interface ChatLocalStorageParams {
 export interface ILocalStorage<ConversationData = any, UserData = any>
   extends IStorage<ConversationData, UserData> {
   addTypingUser: (conversationId: ConversationId, typingUser: TypingUser) => void
+  getMessages: (conversationId: ConversationId) => ChatMessage<MessageContentType>[]
 }
 
 export class ChatLocalStorage<ConversationData = any> implements ILocalStorage<ConversationData> {
@@ -456,5 +457,10 @@ export class ChatLocalStorage<ConversationData = any> implements ILocalStorage<C
     delete messages[conversationId]
     this.messages = messages
     this.setItem('messages', this.messages)
+  }
+
+  getMessages(conversationId: ConversationId): ChatMessage<MessageContentType>[] {
+    const messages = this.messages[conversationId] || []
+    return messages.flatMap((group) => group.messages)
   }
 }

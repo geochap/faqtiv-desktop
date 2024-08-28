@@ -33,6 +33,17 @@ const cleanText = (text: string) => {
   return cleanValue.replace(CLEANUP_WHITESPACE, ' ').trim()
 }
 
+export type ChatServiceEventType = ChatEventType | 'error'
+
+export const ChatServiceEventType = {
+  ...ChatEventType,
+  Error: 'error' as const
+}
+export type ChatServiceErrorEvent = {
+  message: string
+  details?: unknown
+}
+
 export class ChatService implements IChatService {
   storage?: ILocalStorage
   updateState: UpdateState
@@ -45,7 +56,10 @@ export class ChatService implements IChatService {
     this.updateState = update
   }
 
-  private triggerEvent<T extends ChatEventType, H extends ChatEvent<T>>(evtType: T, event: H) {
+  private triggerEvent<T extends ChatServiceEventType, H extends ChatEvent<T>>(
+    evtType: T,
+    event: H
+  ) {
     const key = `on${evtType.charAt(0).toUpperCase()}${evtType.substring(1)}`
 
     if (this.eventHandlers[key]) {
@@ -103,55 +117,72 @@ export class ChatService implements IChatService {
 
   private async streamCompletion(
     agentUrl: string,
-    prompt: string,
+    conversationHistory: ChatMessage<MessageContentType.TextHtml>[],
     onDelta: (delta: string) => void
   ): Promise<string> {
-    const response = await fetch(`${agentUrl.replace(/\/+$/, '')}/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        messages: [{ role: 'user', content: prompt }],
-        stream: true
+    const messages = conversationHistory.map((msg) => ({
+      role: msg.direction === MessageDirection.Outgoing ? 'user' : 'assistant',
+      content: String(msg.content)
+    }))
+
+    try {
+      const response = await fetch(`${agentUrl.replace(/\/+$/, '')}/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messages,
+          stream: true
+        })
       })
-    })
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
 
-    const reader = response.body?.getReader()
-    let result = ''
+      const reader = response.body?.getReader()
+      let result = ''
 
-    if (reader) {
-      let reading = true
-      while (reading) {
-        const { done, value } = await reader.read()
-        if (done) {
-          reading = false
-          break
-        }
-        const chunk = new TextDecoder().decode(value)
-        const lines = chunk.split('\n').filter((line) => line.trim() !== '')
+      if (reader) {
+        let reading = true
+        while (reading) {
+          const { done, value } = await reader.read()
+          if (done) {
+            reading = false
+            break
+          }
+          const chunk = new TextDecoder().decode(value)
+          const lines = chunk.split('\n').filter((line) => line.trim() !== '')
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = JSON.parse(line.slice(6))
-            if (data.choices && data.choices[0].finish_reason === 'stop') {
-              reading = false
-              break
-            }
-            if (data.choices && data.choices[0].delta.content) {
-              result += data.choices[0].delta.content
-              onDelta(data.choices[0].delta.content)
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = JSON.parse(line.slice(6))
+              if (data.choices && data.choices[0].finish_reason === 'stop') {
+                reading = false
+                break
+              }
+              if (data.choices && data.choices[0].finish_reason === 'error') {
+                throw new Error(data.error.message)
+              }
+              if (data.choices && data.choices[0].delta.content) {
+                result += data.choices[0].delta.content
+                onDelta(data.choices[0].delta.content)
+              }
             }
           }
         }
       }
-    }
 
-    return result
+      return result
+    } catch (error) {
+      this.triggerEvent(ChatServiceEventType.Error, {
+        type: ChatServiceEventType.Error,
+        message: error instanceof Error ? error.message : 'An unknown error occurred',
+        details: error
+      })
+      throw error
+    }
   }
 
   async sendMessage({ message, conversationId }: SendMessageServiceParams) {
@@ -167,13 +198,13 @@ export class ChatService implements IChatService {
     try {
       this.agentStartTyping(conversationId, agent.id, '')
 
-      const agentResponse = await this.streamCompletion(
-        agent.url,
-        String(chatMessage.content),
-        (delta) => {
-          this.agentStartTyping(conversationId, agent.id, delta)
-        }
-      )
+      // Get the conversation history
+      const conversationHistory = this.storage?.getMessages(conversationId) || []
+      conversationHistory.push(chatMessage)
+
+      const agentResponse = await this.streamCompletion(agent.url, conversationHistory, (delta) => {
+        this.agentStartTyping(conversationId, agent.id, delta)
+      })
 
       this.agentStopTyping(conversationId, agent.id)
       this.updateConversation(conversation, String(chatMessage.content))

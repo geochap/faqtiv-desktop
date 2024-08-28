@@ -23,8 +23,7 @@ import {
   Conversation as StorageConversation,
   Participant,
   ConversationRole,
-  TypingUsersList,
-  ChatEventType
+  TypingUsersList
 } from '@chatscope/use-chat'
 import { MessageContent, TextContent, User } from '@chatscope/use-chat'
 import { Button, Modal } from 'react-bootstrap'
@@ -33,7 +32,7 @@ import { nanoid } from 'nanoid'
 import { AppContext } from '../../hooks/appHook'
 import { Markdown } from '../Markdown'
 import { CopyButton } from './CopyButton'
-import { ChatService } from '../../ChatService'
+import { ChatService, ChatServiceEventType } from '../../ChatService'
 
 type ChatProps = {
   user: User
@@ -70,6 +69,10 @@ export const Chat = ({ user, chatService }: ChatProps) => {
 
   const handleNewConversation = () => {
     setShowAgentModal(true)
+    // Select the first agent by default
+    if (agents.length > 0) {
+      setSelectedAgent(agents[0].id)
+    }
   }
 
   const createNewConversation = (agentId: string) => {
@@ -109,16 +112,22 @@ export const Chat = ({ user, chatService }: ChatProps) => {
     }
   }, [])
 
+  const handleChatServiceError = useCallback((event: any) => {
+    setError(event.message)
+  }, [])
+
   useEffect(() => {
     setCurrentUser(user)
 
     const service = chatServiceRef.current
-    service.on(ChatEventType.UserTyping, handleUserTyping)
+    service.on(ChatServiceEventType.UserTyping, handleUserTyping)
+    service.on(ChatServiceEventType.Error as any, handleChatServiceError)
 
     return () => {
-      service.off(ChatEventType.UserTyping, handleUserTyping)
+      service.off(ChatServiceEventType.UserTyping, handleUserTyping)
+      service.off(ChatServiceEventType.Error as any, handleChatServiceError)
     }
-  }, [user, setCurrentUser, handleUserTyping])
+  }, [user, setCurrentUser, handleUserTyping, handleChatServiceError])
 
   useEffect(() => {
     chatServiceRef.current.setAgents(agents)
@@ -173,6 +182,10 @@ export const Chat = ({ user, chatService }: ChatProps) => {
   const handleDeleteConversation = async (conversationId: string) => {
     if (conversationId === activeConversation?.id) setError(null)
     removeConversation(conversationId, true)
+  }
+
+  const handleAgentSelection = (agentId: string) => {
+    setSelectedAgent((prevSelected) => (prevSelected === agentId ? null : agentId))
   }
 
   return (
@@ -322,7 +335,7 @@ export const Chat = ({ user, chatService }: ChatProps) => {
             {agents.map((agent) => (
               <Button
                 key={agent.id}
-                onClick={() => setSelectedAgent(agent.id)}
+                onClick={() => handleAgentSelection(agent.id)}
                 variant={selectedAgent === agent.id ? 'primary' : 'outline-primary'}
                 className="m-2"
               >
