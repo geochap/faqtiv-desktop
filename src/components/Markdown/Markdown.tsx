@@ -1,4 +1,4 @@
-import { HTMLAttributes, useCallback, useState, ClassAttributes } from 'react'
+import { HTMLAttributes, useCallback, useState, ClassAttributes, memo } from 'react'
 import { OverlayTrigger, Tooltip } from 'react-bootstrap'
 import { Copy } from 'lucide-react'
 import cs from 'classnames'
@@ -85,7 +85,7 @@ const rehypeKatexOptions: Options = {
   fleqn: true
 }
 
-export const Markdown = ({ className, children }: MarkdownProps) => {
+export const Markdown = memo(({ className, children }: MarkdownProps) => {
   return (
     <ReactMarkdown
       className={cs('markdown-block', className)}
@@ -103,4 +103,4 @@ export const Markdown = ({ className, children }: MarkdownProps) => {
       {children}
     </ReactMarkdown>
   )
-}
+})
