@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron'
 // import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -71,6 +71,10 @@ function createWindow() {
   win.maximize()
   win.show()
 
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url)
+    return { action: 'deny' }
+  })
   win.webContents.on('did-finish-load', setupMenu)
 
   if (VITE_DEV_SERVER_URL) {

@@ -97,6 +97,9 @@ export const Markdown = memo(({ className, children }: MarkdownProps) => {
         },
         table(props) {
           return <CustomTable {...props} />
+        },
+        a(props) {
+          return <a {...props} target="_blank" rel="noopener noreferrer" />
         }
       }}
     >
