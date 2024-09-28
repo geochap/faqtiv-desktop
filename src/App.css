@@ -58,6 +58,13 @@
 .cs-message-input__content-editor-wrapper {
   background-color: rgba(244, 244, 244) !important;
 }
+.cs-message-group--incoming .cs-message-group__content {
+  max-width: 100% !important;
+  overflow: scroll;
+}
+.cs-message-group--incoming .cs-message__content-wrapper {
+  width: 100%;
+}
 .cs-conversation:hover,
 .cs-conversation.cs-conversation--active
 {
