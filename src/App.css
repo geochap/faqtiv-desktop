@@ -60,7 +60,6 @@
 }
 .cs-message-group--incoming .cs-message-group__content {
   max-width: 100% !important;
-  overflow: scroll;
 }
 .cs-message-group--incoming .cs-message__content-wrapper {
   width: 100%;
