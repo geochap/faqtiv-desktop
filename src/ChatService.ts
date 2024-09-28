@@ -222,6 +222,8 @@ export class ChatService implements IChatService {
         ChatEventType.Message,
         new MessageEvent({ message: agentMessage, conversationId })
       )
+    } catch (error) {
+      console.error('Error in sendMessage:', error)
     } finally {
       this.agentStopTyping(conversationId, agent.id)
     }
