@@ -44,6 +44,15 @@ export type ChatServiceErrorEvent = {
   details?: unknown
 }
 
+interface ChatCompletionMessageToolCall {
+  id: string
+  type: string
+  function: {
+    name: string
+    arguments: string
+  }
+}
+
 export class ChatService implements IChatService {
   storage?: ILocalStorage
   updateState: UpdateState
@@ -117,13 +126,51 @@ export class ChatService implements IChatService {
 
   private async streamCompletion(
     agentUrl: string,
-    conversationHistory: ChatMessage<MessageContentType.TextHtml>[],
-    onDelta: (delta: string) => void
+    conversationHistory: ChatMessage<MessageContentType.TextPlain>[],
+    onDelta: (delta: {
+      content: string
+      role: string
+      tool_calls?: ChatCompletionMessageToolCall[]
+    }) => void
   ): Promise<string> {
-    const messages = conversationHistory.map((msg) => ({
-      role: msg.direction === MessageDirection.Outgoing ? 'user' : 'assistant',
-      content: String(msg.content)
-    }))
+    const messages = conversationHistory.map((msg) => {
+      const content = msg.content
+
+      if (msg.direction === MessageDirection.Outgoing) {
+        return {
+          role: 'user',
+          content: String(msg.content)
+        }
+      }
+
+      try {
+        const parsedContent = JSON.parse(String(content))
+        if (parsedContent.tool_calls) {
+          return {
+            role: 'assistant',
+            content: '',
+            tool_calls: parsedContent.tool_calls
+          }
+        } else if (parsedContent.role === 'tool') {
+          return {
+            role: 'tool',
+            content: parsedContent.content,
+            tool_call_id: parsedContent.tool_call_id,
+            name: parsedContent.name
+          }
+        }
+      } catch (error) {
+        return {
+          role: 'assistant',
+          content: content
+        }
+      }
+
+      return {
+        role: 'assistant',
+        content: content
+      }
+    })
 
     try {
       const response = await fetch(`${agentUrl.replace(/\/+$/, '')}/completions`, {
@@ -165,9 +212,11 @@ export class ChatService implements IChatService {
               if (data.choices && data.choices[0].finish_reason === 'error') {
                 throw new Error(data.error.message)
               }
-              if (data.choices && data.choices[0].delta.content) {
-                result += data.choices[0].delta.content
-                onDelta(data.choices[0].delta.content)
+              if (data.choices && data.choices[0].delta) {
+                if (data.choices[0].delta.role === 'assistant') {
+                  result += data.choices[0].delta.content
+                }
+                onDelta(data.choices[0].delta)
               }
             }
           }
@@ -202,7 +251,21 @@ export class ChatService implements IChatService {
       const conversationHistory = this.storage?.getMessages(conversationId) || []
 
       const agentResponse = await this.streamCompletion(agent.url, conversationHistory, (delta) => {
-        this.agentStartTyping(conversationId, agent.id, delta)
+        if ((delta.role === 'assistant' && delta.tool_calls) || delta.role === 'tool') {
+          // Assistant message with tool calls
+          const toolMessage = new ChatMessage({
+            id: nanoid(),
+            senderId: agent.id,
+            direction: MessageDirection.Incoming,
+            status: MessageStatus.Sent,
+            contentType: MessageContentType.TextPlain,
+            content: JSON.stringify(delta) as unknown as MessageContent<MessageContentType>,
+            createdTime: new Date()
+          })
+          this.storage?.addMessage(toolMessage, conversationId, false)
+        } else {
+          this.agentStartTyping(conversationId, agent.id, delta.content)
+        }
       })
 
       this.agentStopTyping(conversationId, agent.id)

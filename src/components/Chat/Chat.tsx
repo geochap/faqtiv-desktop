@@ -44,6 +44,17 @@ const HTML_RX =
   /<(?!img|table|\/table|thead|\/thead|tbody|\/tbody|tr|\/tr|td|\/td|th|\/th|br|\/br).*?>/gi
 const WHITESPACE_RX = /\s+/g
 
+const isNotToolCall = (userId: string, m: ChatMessage<MessageContentType>) => {
+  if (m.senderId === userId) return true
+
+  try {
+    const content = JSON.parse(String(m.content))
+    return !content.tool_calls && content.role !== 'tool'
+  } catch (e) {
+    return true
+  }
+}
+
 export const Chat = ({ user, chatService }: ChatProps) => {
   const {
     currentMessages,
@@ -253,36 +264,38 @@ export const Chat = ({ user, chatService }: ChatProps) => {
               currentMessages.map((g) => (
                 <MessageGroup key={g.id} direction={g.direction}>
                   <MessageGroup.Messages>
-                    {g.messages.map((m: ChatMessage<MessageContentType>) => {
-                      if (m.senderId !== user.id) {
+                    {g.messages
+                      .filter((m: ChatMessage<MessageContentType>) => isNotToolCall(user.id, m))
+                      .map((m: ChatMessage<MessageContentType>) => {
+                        if (m.senderId !== user.id) {
+                          return (
+                            <Message
+                              key={m.id}
+                              model={{
+                                type: 'custom',
+                                direction: m.direction,
+                                position: 'normal'
+                              }}
+                            >
+                              <Message.CustomContent>
+                                <Markdown>{String(m.content)}</Markdown>
+                                <CopyButton content={String(m.content)} />
+                              </Message.CustomContent>
+                            </Message>
+                          )
+                        }
                         return (
                           <Message
                             key={m.id}
                             model={{
-                              type: 'custom',
+                              type: 'html',
+                              payload: m.content,
                               direction: m.direction,
                               position: 'normal'
                             }}
-                          >
-                            <Message.CustomContent>
-                              <Markdown>{String(m.content)}</Markdown>
-                              <CopyButton content={String(m.content)} />
-                            </Message.CustomContent>
-                          </Message>
+                          />
                         )
-                      }
-                      return (
-                        <Message
-                          key={m.id}
-                          model={{
-                            type: 'html',
-                            payload: m.content,
-                            direction: m.direction,
-                            position: 'normal'
-                          }}
-                        />
-                      )
-                    })}
+                      })}
                   </MessageGroup.Messages>
                 </MessageGroup>
               ))}
