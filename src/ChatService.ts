@@ -200,7 +200,6 @@ export class ChatService implements IChatService {
 
       // Get the conversation history
       const conversationHistory = this.storage?.getMessages(conversationId) || []
-      conversationHistory.push(chatMessage)
 
       const agentResponse = await this.streamCompletion(agent.url, conversationHistory, (delta) => {
         this.agentStartTyping(conversationId, agent.id, delta)
