@@ -125,7 +125,7 @@ export class ChatService implements IChatService {
   }
 
   private async streamCompletion(
-    agentUrl: string,
+    agent: Agent,
     conversationHistory: ChatMessage<MessageContentType.TextPlain>[],
     onDelta: (delta: {
       content: string
@@ -173,14 +173,17 @@ export class ChatService implements IChatService {
     })
 
     try {
-      const response = await fetch(`${agentUrl.replace(/\/+$/, '')}/completions`, {
+      const response = await fetch(`${agent.url.replace(/\/+$/, '')}/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           messages,
-          stream: true
+          stream: true,
+          include_tool_messages: agent.includeToolMessages,
+          max_tokens: agent.maxTokens,
+          temperature: agent.temperature
         })
       })
 
@@ -250,7 +253,7 @@ export class ChatService implements IChatService {
       // Get the conversation history
       const conversationHistory = this.storage?.getMessages(conversationId) || []
 
-      const agentResponse = await this.streamCompletion(agent.url, conversationHistory, (delta) => {
+      const agentResponse = await this.streamCompletion(agent, conversationHistory, (delta) => {
         if ((delta.role === 'assistant' && delta.tool_calls) || delta.role === 'tool') {
           // Assistant message with tool calls
           const toolMessage = new ChatMessage({

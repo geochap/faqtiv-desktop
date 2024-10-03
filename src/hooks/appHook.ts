@@ -35,9 +35,7 @@ const useAppHook = () => {
   const [agents, setAgents] = useState<Agent[]>([])
 
   const initializeAgent = (agent: Agent): Agent => ({
-    id: agent.id,
-    name: agent.name,
-    url: agent.url
+    ...agent
   })
 
   const addAgent = (agent: Agent) => {

@@ -206,7 +206,7 @@ ipcMain.on('update-agent', async (event, updatedAgent) => {
 
     config!.agents[agentIndex] = {
       ...agent,
-      name: updatedAgent.name
+      ...updatedAgent
     }
     await updateConfigFile()
     event.reply('update-agent-reply', { success: true })

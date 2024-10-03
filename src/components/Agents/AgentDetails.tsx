@@ -14,10 +14,16 @@ const AgentDetails = ({ agent, onUpdateAgent, onDeleteAgent }: AgentDetailsProps
   const [showModal, setShowModal] = useState(false)
   const [isChanged, setIsChanged] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [includeToolMessages, setIncludeToolMessages] = useState(agent.includeToolMessages ?? false)
+  const [maxTokens, setMaxTokens] = useState<number | undefined>(agent.maxTokens)
+  const [temperature, setTemperature] = useState<number | undefined>(agent.temperature)
 
   useEffect(() => {
     setName(agent.name)
     setUrl(agent.url)
+    setIncludeToolMessages(agent.includeToolMessages ?? false)
+    setMaxTokens(agent.maxTokens)
+    setTemperature(agent.temperature)
     setIsChanged(false)
   }, [agent])
 
@@ -25,7 +31,14 @@ const AgentDetails = ({ agent, onUpdateAgent, onDeleteAgent }: AgentDetailsProps
     event.preventDefault()
     setError(null)
     try {
-      await onUpdateAgent({ ...agent, name, url })
+      await onUpdateAgent({
+        ...agent,
+        name,
+        url,
+        includeToolMessages,
+        maxTokens,
+        temperature
+      })
       setIsChanged(false)
     } catch (err) {
       setError(err as string)
@@ -51,9 +64,16 @@ const AgentDetails = ({ agent, onUpdateAgent, onDeleteAgent }: AgentDetailsProps
     setShowModal(false)
   }
 
-  const handleChange = (setter: (value: string) => void, value: string, originalValue: string) => {
+  const handleChange = (setter: (value: any) => void, value: any, originalValue: any) => {
     setter(value)
-    setIsChanged(value !== originalValue || name !== agent.name || url !== agent.url)
+    setIsChanged(
+      value !== originalValue ||
+        name !== agent.name ||
+        url !== agent.url ||
+        includeToolMessages !== agent.includeToolMessages ||
+        maxTokens !== agent.maxTokens ||
+        temperature !== agent.temperature
+    )
   }
 
   return (
@@ -75,6 +95,49 @@ const AgentDetails = ({ agent, onUpdateAgent, onDeleteAgent }: AgentDetailsProps
             type="text"
             value={url}
             onChange={(e) => handleChange(setUrl, e.target.value, agent.url)}
+          />
+        </Form.Group>
+        <Form.Group controlId="agentIncludeToolMessages" className="mb-3">
+          <Form.Check
+            type="switch"
+            label="Include tool messages"
+            checked={includeToolMessages}
+            onChange={(e) =>
+              handleChange(setIncludeToolMessages, e.target.checked, agent.includeToolMessages)
+            }
+          />
+        </Form.Group>
+        <Form.Group controlId="agentMaxTokens" className="mb-3">
+          <Form.Label>Max Tokens</Form.Label>
+          <Form.Control
+            type="number"
+            value={maxTokens ?? ''}
+            placeholder="Model default"
+            onChange={(e) =>
+              handleChange(
+                setMaxTokens,
+                e.target.value === '' ? undefined : parseInt(e.target.value),
+                agent.maxTokens
+              )
+            }
+          />
+        </Form.Group>
+        <Form.Group controlId="agentTemperature" className="mb-3">
+          <Form.Label>Temperature</Form.Label>
+          <Form.Control
+            type="number"
+            step="0.1"
+            min="0"
+            max="1"
+            value={temperature ?? ''}
+            placeholder="Model default"
+            onChange={(e) =>
+              handleChange(
+                setTemperature,
+                e.target.value === '' ? undefined : parseFloat(e.target.value),
+                agent.temperature
+              )
+            }
           />
         </Form.Group>
         {error && (
