@@ -82,7 +82,8 @@ const CustomTable = (props: HTMLAttributes<HTMLTableElement>) => {
 
 const rehypeKatexOptions: Options = {
   output: 'html',
-  fleqn: true
+  fleqn: true,
+  strict: false
 }
 
 export const Markdown = memo(({ className, children }: MarkdownProps) => {

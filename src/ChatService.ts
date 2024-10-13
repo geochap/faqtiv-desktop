@@ -193,6 +193,7 @@ export class ChatService implements IChatService {
 
       const reader = response.body?.getReader()
       let result = ''
+      let buffer: string = '';  // Buffer to accumulate incoming chunks
 
       if (reader) {
         let reading = true
@@ -202,12 +203,25 @@ export class ChatService implements IChatService {
             reading = false
             break
           }
-          const chunk = new TextDecoder().decode(value)
-          const lines = chunk.split('\n').filter((line) => line.trim() !== '')
+
+          // Decode the current chunk and add it to the buffer
+          buffer += new TextDecoder().decode(value);
+          
+          // Split buffer on newline characters to process complete messages
+          let lines = buffer.split('\n');
+          
+          // Keep the last part of the buffer (incomplete chunk) for the next iteration
+          buffer = lines.pop() || '';
 
           for (const line of lines) {
             if (line.startsWith('data: ')) {
-              const data = JSON.parse(line.slice(6))
+              let data 
+              try {
+                data = JSON.parse(line.slice(6))
+              } catch(ex){
+                console.log(line)
+                throw(ex);
+              }
               if (data.choices && data.choices[0].finish_reason === 'stop') {
                 reading = false
                 break
