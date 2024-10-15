@@ -58,6 +58,12 @@
 .cs-message-input__content-editor-wrapper {
   background-color: rgba(244, 244, 244) !important;
 }
+.cs-message-group--incoming .cs-message-group__content {
+  max-width: 100% !important;
+}
+.cs-message-group--incoming .cs-message__content-wrapper {
+  width: 100%;
+}
 .cs-conversation:hover,
 .cs-conversation.cs-conversation--active
 {
@@ -119,14 +125,11 @@
 
 .cs-error-message {
   position: absolute;
-  bottom: 0;
-  margin-bottom: 0 !important;
-  width: 600px;
+  bottom: -40px;
+  width: auto;
   max-width: 80%;
-  margin-left: auto !important;
-  margin-right: auto !important;
-  left: 0;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
   text-align: center;
 }
 .cs-error-message-content {
@@ -135,7 +138,7 @@
   align-items: center;
   width: 100%;
 }
-.cs-error-message .btn{
+.cs-error-message .btn {
   color: white;
   padding: 0;
   line-height: 0;

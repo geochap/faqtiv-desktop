@@ -1,47 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react'
-import { Button, Form, Container, Modal, Alert, Accordion } from 'react-bootstrap'
-import { Agent, AgentTask } from '../../types'
-
-type TaskProps = {
-  tasks: AgentTask[]
-}
-
-const TaskDetails = (props: TaskProps) => {
-  const { tasks } = props
-  return (
-    <Accordion>
-      {tasks.map((task, index) => (
-        <Accordion.Item eventKey={String(index)} key={index}>
-          <Accordion.Header>
-            <strong>{task.name}</strong>
-          </Accordion.Header>
-          <Accordion.Body>
-            <p>
-              <strong>Description:</strong> {task.description}
-            </p>
-            <p>
-              <strong>Returns:</strong> {task.returns}
-            </p>
-            <p>
-              <strong>Required Params:</strong>{' '}
-              {task.requiredParams ? task.requiredParams.join(', ') : ''}
-            </p>
-            <p>
-              <strong>Schema:</strong>
-            </p>
-            <ul>
-              {Object.entries(task.schema).map(([param, details]) => (
-                <li key={param}>
-                  <strong>{param}</strong>: {details.type} - {details.description}
-                </li>
-              ))}
-            </ul>
-          </Accordion.Body>
-        </Accordion.Item>
-      ))}
-    </Accordion>
-  )
-}
+import { Button, Form, Container, Modal, Alert } from 'react-bootstrap'
+import { Agent } from '../../types'
 
 type AgentDetailsProps = {
   agent: Agent
@@ -51,16 +10,20 @@ type AgentDetailsProps = {
 
 const AgentDetails = ({ agent, onUpdateAgent, onDeleteAgent }: AgentDetailsProps) => {
   const [name, setName] = useState(agent.name)
-  const [path, setPath] = useState(agent.path)
-  const [tasks, setTasks] = useState<AgentTask[]>(agent.tasks || [])
+  const [url, setUrl] = useState(agent.url)
   const [showModal, setShowModal] = useState(false)
   const [isChanged, setIsChanged] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [includeToolMessages, setIncludeToolMessages] = useState(agent.includeToolMessages ?? false)
+  const [maxTokens, setMaxTokens] = useState<number | undefined>(agent.maxTokens)
+  const [temperature, setTemperature] = useState<number | undefined>(agent.temperature)
 
   useEffect(() => {
     setName(agent.name)
-    setPath(agent.path)
-    setTasks(agent.tasks || [])
+    setUrl(agent.url)
+    setIncludeToolMessages(agent.includeToolMessages ?? false)
+    setMaxTokens(agent.maxTokens)
+    setTemperature(agent.temperature)
     setIsChanged(false)
   }, [agent])
 
@@ -68,7 +31,14 @@ const AgentDetails = ({ agent, onUpdateAgent, onDeleteAgent }: AgentDetailsProps
     event.preventDefault()
     setError(null)
     try {
-      await onUpdateAgent({ ...agent, name, path })
+      await onUpdateAgent({
+        ...agent,
+        name,
+        url,
+        includeToolMessages,
+        maxTokens,
+        temperature
+      })
       setIsChanged(false)
     } catch (err) {
       setError(err as string)
@@ -94,9 +64,16 @@ const AgentDetails = ({ agent, onUpdateAgent, onDeleteAgent }: AgentDetailsProps
     setShowModal(false)
   }
 
-  const handleChange = (setter: (value: string) => void, value: string, originalValue: string) => {
+  const handleChange = (setter: (value: any) => void, value: any, originalValue: any) => {
     setter(value)
-    setIsChanged(value !== originalValue || name !== agent.name || path !== agent.path)
+    setIsChanged(
+      value !== originalValue ||
+        name !== agent.name ||
+        url !== agent.url ||
+        includeToolMessages !== agent.includeToolMessages ||
+        maxTokens !== agent.maxTokens ||
+        temperature !== agent.temperature
+    )
   }
 
   return (
@@ -112,9 +89,56 @@ const AgentDetails = ({ agent, onUpdateAgent, onDeleteAgent }: AgentDetailsProps
             onChange={(e) => handleChange(setName, e.target.value, agent.name)}
           />
         </Form.Group>
-        <Form.Group controlId="agentPath" className="mb-3">
-          <Form.Label>Path</Form.Label>
-          <Form.Control type="text" value={path} disabled />
+        <Form.Group controlId="agentUrl" className="mb-3">
+          <Form.Label>URL</Form.Label>
+          <Form.Control
+            type="text"
+            value={url}
+            onChange={(e) => handleChange(setUrl, e.target.value, agent.url)}
+          />
+        </Form.Group>
+        <Form.Group controlId="agentIncludeToolMessages" className="mb-3">
+          <Form.Check
+            type="switch"
+            label="Include tool messages"
+            checked={includeToolMessages}
+            onChange={(e) =>
+              handleChange(setIncludeToolMessages, e.target.checked, agent.includeToolMessages)
+            }
+          />
+        </Form.Group>
+        <Form.Group controlId="agentMaxTokens" className="mb-3">
+          <Form.Label>Max Tokens</Form.Label>
+          <Form.Control
+            type="number"
+            value={maxTokens ?? ''}
+            placeholder="Model default"
+            onChange={(e) =>
+              handleChange(
+                setMaxTokens,
+                e.target.value === '' ? undefined : parseInt(e.target.value),
+                agent.maxTokens
+              )
+            }
+          />
+        </Form.Group>
+        <Form.Group controlId="agentTemperature" className="mb-3">
+          <Form.Label>Temperature</Form.Label>
+          <Form.Control
+            type="number"
+            step="0.1"
+            min="0"
+            max="1"
+            value={temperature ?? ''}
+            placeholder="Model default"
+            onChange={(e) =>
+              handleChange(
+                setTemperature,
+                e.target.value === '' ? undefined : parseFloat(e.target.value),
+                agent.temperature
+              )
+            }
+          />
         </Form.Group>
         {error && (
           <Alert variant="danger" onClose={() => setError(null)} dismissible>
@@ -130,19 +154,6 @@ const AgentDetails = ({ agent, onUpdateAgent, onDeleteAgent }: AgentDetailsProps
           </Button>
         </div>
       </Form>
-      <h3 className="mt-5 mb-4">Assistant instructions</h3>
-      <Form.Group controlId="agentInstructions" className="mb-3">
-        <Form.Control
-          style={{ backgroundColor: 'white' }}
-          as="textarea"
-          value={agent.instructions}
-          disabled
-        />
-      </Form.Group>
-      <h3 className="mt-4">Tasks</h3>
-      <div className="mt-2">
-        <TaskDetails tasks={tasks} />
-      </div>
       <Modal show={showModal} onHide={handleCloseModal}>
         <Modal.Header closeButton>
           <Modal.Title>Confirm Delete</Modal.Title>

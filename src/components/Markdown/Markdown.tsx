@@ -1,4 +1,4 @@
-import { Fragment, HTMLAttributes, useCallback, useState, ClassAttributes } from 'react'
+import { HTMLAttributes, useCallback, useState, ClassAttributes, memo } from 'react'
 import { OverlayTrigger, Tooltip } from 'react-bootstrap'
 import { Copy } from 'lucide-react'
 import cs from 'classnames'
@@ -42,7 +42,7 @@ const HighlightCode = (
   }, [code, copy])
 
   return match ? (
-    <Fragment>
+    <div style={{ position: 'relative' }}>
       <SyntaxHighlighter {...rest} style={vscDarkPlus} language={match[1]} PreTag="div">
         {code}
       </SyntaxHighlighter>
@@ -52,7 +52,15 @@ const HighlightCode = (
         overlay={<Tooltip id="tooltip-top">Copied!</Tooltip>}
       >
         <button
-          style={{ float: 'right' }}
+          style={{
+            position: 'absolute',
+            top: '5px',
+            right: '5px',
+            background: 'transparent',
+            border: 'none',
+            color: 'white',
+            cursor: 'pointer'
+          }}
           onClick={onCopy}
           onMouseLeave={() => setTooltipOpen(false)}
           className="btn unstyled p-0"
@@ -60,7 +68,7 @@ const HighlightCode = (
           <Copy size={15} />
         </button>
       </OverlayTrigger>
-    </Fragment>
+    </div>
   ) : (
     <code ref={ref} {...rest} className={cs('highlight', className)}>
       {children}
@@ -74,10 +82,11 @@ const CustomTable = (props: HTMLAttributes<HTMLTableElement>) => {
 
 const rehypeKatexOptions: Options = {
   output: 'html',
-  fleqn: true
+  fleqn: true,
+  strict: false
 }
 
-export const Markdown = ({ className, children }: MarkdownProps) => {
+export const Markdown = memo(({ className, children }: MarkdownProps) => {
   return (
     <ReactMarkdown
       className={cs('markdown-block', className)}
@@ -89,10 +98,13 @@ export const Markdown = ({ className, children }: MarkdownProps) => {
         },
         table(props) {
           return <CustomTable {...props} />
+        },
+        a(props) {
+          return <a {...props} target="_blank" rel="noopener noreferrer" />
         }
       }}
     >
       {children}
     </ReactMarkdown>
   )
-}
+})

@@ -11,13 +11,13 @@ export type AgentTask = {
   requiredParams: string[]
 }
 
-export type Agent = {
+export interface Agent {
   id: string
   name: string
-  path: string
-  tasks?: AgentTask[]
-  toolSchemas?: []
-  instructions?: string
+  url: string
+  includeToolMessages?: boolean
+  maxTokens?: number | undefined
+  temperature?: number | undefined
 }
 
 export type FDConfig = {

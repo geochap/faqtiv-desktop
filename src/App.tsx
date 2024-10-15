@@ -1,10 +1,8 @@
 import 'bootstrap/dist/css/bootstrap.min.css'
 import './App.css'
 import {
-  ChatMessage,
   ChatProvider,
   IStorage,
-  MessageContentType,
   Presence,
   UpdateState,
   User,
@@ -19,15 +17,11 @@ import useAppHook, { AppContext } from './hooks/appHook'
 import { ChatService } from './ChatService'
 import { ChatLocalStorage } from './ChatLocalStorage'
 import Agents from './components/Agents/Agents'
+import { useEffect, useState } from 'react'
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const messageIdGenerator = (_message: ChatMessage<MessageContentType>) => nanoid()
+const messageIdGenerator = () => nanoid()
 const groupIdGenerator = () => nanoid()
 const storage = new ChatLocalStorage({ groupIdGenerator, messageIdGenerator })
-
-const serviceFactory = (storage: IStorage, updateState: UpdateState) => {
-  return new ChatService(storage, updateState)
-}
 
 const user = new User({
   id: 'Me',
@@ -54,23 +48,37 @@ storage.addUser(assistantUser)
 
 function App() {
   const provider = useAppHook()
+  const [chatService, setChatService] = useState<ChatService | null>(null)
+
+  useEffect(() => {
+    if (!provider.agents) return
+
+    const serviceFactory = (storageInstance: IStorage, updateState: UpdateState) => {
+      const service = new ChatService(storageInstance, updateState)
+      setChatService(service)
+      return service
+    }
+    serviceFactory(storage, () => {})
+  }, [provider.agents])
 
   return (
     <AppContext.Provider value={provider}>
       {provider.activePage === 'Home' && (
         <div className="overflow-hidden w-100 h-100">
-          <ChatProvider
-            serviceFactory={serviceFactory}
-            storage={storage}
-            config={{
-              typingThrottleTime: 250,
-              typingDebounceTime: 900,
-              debounceTyping: true,
-              autoDraft: AutoDraft.Save | AutoDraft.Restore
-            }}
-          >
-            <Chat user={user} assistantUser={assistantUser} storage={storage} />
-          </ChatProvider>
+          {chatService && (
+            <ChatProvider
+              serviceFactory={() => chatService}
+              storage={storage}
+              config={{
+                typingThrottleTime: 250,
+                typingDebounceTime: 900,
+                debounceTyping: true,
+                autoDraft: AutoDraft.Save | AutoDraft.Restore
+              }}
+            >
+              <Chat user={user} chatService={chatService} />
+            </ChatProvider>
+          )}
         </div>
       )}
       {provider.activePage === 'Agents' && <Agents />}
