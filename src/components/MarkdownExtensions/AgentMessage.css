@@ -1,0 +1,9 @@
+.agent-message {
+  padding: .5rem 1rem ;
+  border-left: 2px solid #888 ;
+  margin-bottom: 0px;
+}
+
+.agent-message:last-of-type {
+  margin-bottom: 8px;
+}

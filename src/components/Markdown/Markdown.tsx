@@ -5,14 +5,14 @@ import cs from 'classnames'
 import ReactMarkdown, { ExtraProps } from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import rehypeStringify from 'rehype-stringify'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
-import remarkParse from 'remark-parse'
-import remarkRehype from 'remark-rehype'
 import rehypeRaw from 'rehype-raw'
 import rehypeKatex, { Options } from 'rehype-katex'
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard'
+import remarkAgentMessage from '../MarkdownExtensions/agentMessageExtension'; 
+
+import AgentMessage from '../MarkdownExtensions/AgentMessage'; 
 
 import 'katex/dist/katex.min.css'
 import './index.css'
@@ -86,25 +86,35 @@ const rehypeKatexOptions: Options = {
   strict: false
 }
 
+
+const markdownComponents = {
+  code: (props: any) => <HighlightCode {...props} />,
+  table: (props: any) => <CustomTable {...props} />,
+  a: (props: any) => <a {...props} target="_blank" rel="noopener noreferrer" />,
+  agentmessage: (props: any) => {
+    const { node, ...rest } = props;
+    const msg = node.data?.msg || '';
+    return <AgentMessage msg={msg} {...rest} />;
+  },
+
+};
+
 export const Markdown = memo(({ className, children }: MarkdownProps) => {
   return (
     <ReactMarkdown
       className={cs('markdown-block', className)}
-      remarkPlugins={[remarkParse, remarkMath, remarkRehype, remarkGfm]}
-      rehypePlugins={[rehypeRaw, [rehypeKatex, rehypeKatexOptions], rehypeStringify]}
-      components={{
-        code(props) {
-          return <HighlightCode {...props} />
-        },
-        table(props) {
-          return <CustomTable {...props} />
-        },
-        a(props) {
-          return <a {...props} target="_blank" rel="noopener noreferrer" />
-        }
-      }}
+      remarkPlugins={[
+        remarkGfm,
+        remarkMath,
+        remarkAgentMessage, // must run after GFM/Math so it can transform code blocks
+      ]}
+      rehypePlugins={[
+        rehypeRaw,
+        [rehypeKatex, rehypeKatexOptions],
+      ]}
+      components={markdownComponents}
     >
       {children}
     </ReactMarkdown>
-  )
-})
+  );
+});
