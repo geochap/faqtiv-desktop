@@ -122,15 +122,17 @@
   margin: 20px 0 15px 0;
   font-size: 20px;
 }
-
 .cs-error-message {
-  position: absolute;
-  bottom: -40px;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   width: auto;
   max-width: 80%;
-  left: 50%;
-  transform: translateX(-50%);
   text-align: center;
+  padding: 8px;
+  border-radius: 5px; /* Optional: Rounded corners */
+  z-index: 9999; /* Ensures it stays on top */
 }
 .cs-error-message-content {
   display: flex;
