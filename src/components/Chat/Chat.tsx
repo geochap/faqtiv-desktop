@@ -29,6 +29,7 @@ import { MessageContent, TextContent, User } from '@chatscope/use-chat'
 import { Button, Modal } from 'react-bootstrap'
 import { PenBox, X } from 'lucide-react'
 import { nanoid } from 'nanoid'
+import DOMPurify from 'dompurify'
 import { AppContext } from '../../hooks/appHook'
 import { Markdown } from '../Markdown'
 import { CopyButton } from './CopyButton'
@@ -38,11 +39,6 @@ type ChatProps = {
   user: User
   chatService: ChatService
 }
-
-const XML_RX = /<!--\[if.*?\]>.*?<!--\[endif\]-->/gis
-const HTML_RX =
-  /<(?!img|table|\/table|thead|\/thead|tbody|\/tbody|tr|\/tr|td|\/td|th|\/th|br|\/br).*?>/gi
-const WHITESPACE_RX = /\s+/g
 
 const isNotToolCall = (userId: string, m: ChatMessage<MessageContentType>) => {
   if (m.senderId === userId) return true
@@ -60,10 +56,8 @@ export const Chat = ({ user, chatService }: ChatProps) => {
     currentMessages,
     conversations,
     activeConversation,
-    currentMessage,
     setActiveConversation,
     sendMessage,
-    setCurrentMessage,
     setCurrentUser,
     addConversation,
     removeConversation,
@@ -77,6 +71,7 @@ export const Chat = ({ user, chatService }: ChatProps) => {
   const [showAgentModal, setShowAgentModal] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null)
   const chatServiceRef = useRef(chatService)
+  const messageInputRef = useRef<HTMLInputElement>(null)
 
   const handleNewConversation = () => {
     setShowAgentModal(true)
@@ -113,6 +108,12 @@ export const Chat = ({ user, chatService }: ChatProps) => {
     setError(null)
     setShowAgentModal(false)
     setSelectedAgent(null)
+
+    setTimeout(() => {
+      requestAnimationFrame(() => {
+        if (messageInputRef.current) messageInputRef.current.focus()
+      })
+    }, 0)
   }
 
   const handleUserTyping = useCallback((event: any) => {
@@ -144,19 +145,33 @@ export const Chat = ({ user, chatService }: ChatProps) => {
     chatServiceRef.current.setAgents(agents)
   }, [agents])
 
-  const handleChange = (value: string) => {
-    const cleanValue = value
-      .replace(XML_RX, '')
-      .replace(HTML_RX, '')
-      .replace(WHITESPACE_RX, ' ')
-      .trim()
+  const handleChange = (text: string) => {
+    currentMessageRef.current = DOMPurify.sanitize(text, { ALLOWED_TAGS: [] })
+  }
 
-    setCurrentMessage(cleanValue)
+  const handlePaste = (event: React.ClipboardEvent) => {
+    event.preventDefault()
+    const pastedText = event.clipboardData.getData('text')
+    handleChange(`${currentMessageRef.current || ''}${pastedText}`)
+
+    if (messageInputRef.current) {
+      const editableElement = document.querySelector('.cs-message-input__content-editor')
+      if (editableElement) {
+        editableElement.innerHTML = currentMessageRef.current || ''
+        const inputEvent = new Event('input', { bubbles: true, cancelable: true })
+        editableElement.dispatchEvent(inputEvent)
+        const range = document.createRange()
+        const sel = window.getSelection()
+        range.selectNodeContents(editableElement)
+        range.collapse(false)
+        sel?.removeAllRanges()
+        sel?.addRange(range)
+      }
+    }
   }
 
   const handleSend = async (text: string) => {
     currentAgentMessage.current = ''
-    setCurrentMessage(currentMessageRef.current || '')
     currentMessageRef.current = undefined
 
     const message = new ChatMessage({
@@ -331,8 +346,10 @@ export const Chat = ({ user, chatService }: ChatProps) => {
             </Message>
           </MessageList>
           <MessageInput
-            value={currentMessage}
+            ref={messageInputRef}
+            value={currentMessageRef.current}
             onChange={handleChange}
+            onPaste={handlePaste}
             onSend={handleSend}
             disabled={!activeConversation}
             attachButton={false}
