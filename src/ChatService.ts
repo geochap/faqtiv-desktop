@@ -20,17 +20,10 @@ import {
 import { ILocalStorage } from './ChatLocalStorage'
 import { Agent } from './types'
 import { nanoid } from 'nanoid'
-
-const XML_REGULAR = /(.*(?:endif-->))|([ ]?<[^>]*>[ ]?)|(&nbsp;)|([^}]*})/g
-const HTML_REGULAR =
-  /<(?!img|table|\/table|thead|\/thead|tbody|\/tbody|tr|\/tr|td|\/td|th|\/th|br|\/br).*?>/gi
-const CLEANUP_WHITESPACE = /\s+/g
+import DOMPurify from 'dompurify'
 
 const cleanText = (text: string) => {
-  let cleanValue = text.replace(XML_REGULAR, '')
-  cleanValue = cleanValue.replace(HTML_REGULAR, '')
-
-  return cleanValue.replace(CLEANUP_WHITESPACE, ' ').trim()
+  return DOMPurify.sanitize(text, { ALLOWED_TAGS: [] })
 }
 
 export type ChatServiceEventType = ChatEventType | 'error'
@@ -175,12 +168,13 @@ export class ChatService implements IChatService {
     try {
       const response = await fetch(`${agent.url.replace(/\/+$/, '')}/completions`, {
         method: 'POST',
+        mode: 'cors',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream'
         },
         body: JSON.stringify({
           messages,
-          stream: true,
           include_tool_messages: agent.includeToolMessages,
           max_tokens: agent.maxTokens,
           temperature: agent.temperature
@@ -193,7 +187,7 @@ export class ChatService implements IChatService {
 
       const reader = response.body?.getReader()
       let result = ''
-      let buffer: string = '';  // Buffer to accumulate incoming chunks
+      let buffer: string = '' // Buffer to accumulate incoming chunks
 
       if (reader) {
         let reading = true
@@ -205,22 +199,22 @@ export class ChatService implements IChatService {
           }
 
           // Decode the current chunk and add it to the buffer
-          buffer += new TextDecoder().decode(value);
-          
+          buffer += new TextDecoder().decode(value)
+
           // Split buffer on newline characters to process complete messages
-          let lines = buffer.split('\n');
-          
+          const lines = buffer.split('\n')
+
           // Keep the last part of the buffer (incomplete chunk) for the next iteration
-          buffer = lines.pop() || '';
+          buffer = lines.pop() || ''
 
           for (const line of lines) {
             if (line.startsWith('data: ')) {
-              let data 
+              let data
               try {
                 data = JSON.parse(line.slice(6))
-              } catch(ex){
+              } catch (ex) {
                 console.log(line)
-                throw(ex);
+                throw ex
               }
               if (data.choices && data.choices[0].finish_reason === 'stop') {
                 reading = false
