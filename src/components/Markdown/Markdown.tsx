@@ -10,9 +10,8 @@ import remarkMath from 'remark-math'
 import rehypeRaw from 'rehype-raw'
 import rehypeKatex, { Options } from 'rehype-katex'
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard'
-import remarkAgentMessage from '../MarkdownExtensions/agentMessageExtension'; 
-
-import AgentMessage from '../MarkdownExtensions/AgentMessage'; 
+import remarkAgentMessage from '../MarkdownExtensions/agentMessageExtension'
+import AgentMessage from '../MarkdownExtensions/AgentMessage'
 
 import 'katex/dist/katex.min.css'
 import './index.css'
@@ -86,18 +85,16 @@ const rehypeKatexOptions: Options = {
   strict: false
 }
 
-
 const markdownComponents = {
   code: (props: any) => <HighlightCode {...props} />,
   table: (props: any) => <CustomTable {...props} />,
   a: (props: any) => <a {...props} target="_blank" rel="noopener noreferrer" />,
   agentmessage: (props: any) => {
-    const { node, ...rest } = props;
-    const msg = node.data?.msg || '';
-    return <AgentMessage msg={msg} {...rest} />;
-  },
-
-};
+    const { node, ...rest } = props
+    const msg = node.data?.msg || ''
+    return <AgentMessage msg={msg} {...rest} />
+  }
+}
 
 export const Markdown = memo(({ className, children }: MarkdownProps) => {
   return (
@@ -106,15 +103,12 @@ export const Markdown = memo(({ className, children }: MarkdownProps) => {
       remarkPlugins={[
         remarkGfm,
         remarkMath,
-        remarkAgentMessage, // must run after GFM/Math so it can transform code blocks
+        remarkAgentMessage // must run after GFM/Math so it can transform code blocks
       ]}
-      rehypePlugins={[
-        rehypeRaw,
-        [rehypeKatex, rehypeKatexOptions],
-      ]}
+      rehypePlugins={[rehypeRaw, [rehypeKatex, rehypeKatexOptions]]}
       components={markdownComponents}
     >
       {children}
     </ReactMarkdown>
-  );
-});
+  )
+})

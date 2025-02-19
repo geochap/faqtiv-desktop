@@ -1,16 +1,12 @@
-import React from 'react';
-import './AgentMessage.css'; // Optional: import a CSS file for styling
+import React from 'react'
+import './AgentMessage.css'
 
 interface AgentMessageProps {
-  msg: string;
+  msg: string
 }
 
 const AgentMessage: React.FC<AgentMessageProps> = ({ msg }) => {
-  return (
-    <div className="agent-message">
-      {msg}
-    </div>
-  );
-};
+  return <div className="agent-message">{msg}</div>
+}
 
-export default AgentMessage;
+export default AgentMessage
