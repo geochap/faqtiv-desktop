@@ -102,7 +102,7 @@ export const Markdown = memo(({ className, children }: MarkdownProps) => {
       className={cs('markdown-block', className)}
       remarkPlugins={[
         remarkGfm,
-        remarkMath,
+        [remarkMath, { singleDollarTextMath: false }],
         remarkAgentMessage // must run after GFM/Math so it can transform code blocks
       ]}
       rehypePlugins={[rehypeRaw, [rehypeKatex, rehypeKatexOptions]]}
