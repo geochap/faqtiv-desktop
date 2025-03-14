@@ -347,7 +347,7 @@ export const Chat = ({ user, chatService }: ChatProps) => {
           </MessageList>
           <MessageInput
             ref={messageInputRef}
-            value={currentMessageRef.current}
+            // value={currentMessageRef.current}
             onChange={handleChange}
             onPaste={handlePaste}
             onSend={handleSend}

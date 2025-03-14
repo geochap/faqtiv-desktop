@@ -12,9 +12,11 @@ import rehypeKatex, { Options } from 'rehype-katex'
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard'
 import remarkAgentMessage from '../MarkdownExtensions/agentMessageExtension'
 import AgentMessage from '../MarkdownExtensions/AgentMessage'
+import ChartJS from '../MarkdownExtensions/ChartJS'
 
 import 'katex/dist/katex.min.css'
 import './index.css'
+import remarkChartjs from '../MarkdownExtensions/chartjsExtension'
 
 export interface MarkdownProps {
   className?: string
@@ -93,7 +95,14 @@ const markdownComponents = {
     const { node, ...rest } = props
     const msg = node.data?.msg || ''
     return <AgentMessage msg={msg} {...rest} />
-  }
+  },
+  chartjs: (props: any) => {
+    const { node, ...rest } = props;
+    const rawJson = node.children?.map((child: any) => child.value).join('').trim() || '{}';
+
+    console.log(rawJson)
+    return <ChartJS>{rawJson}</ChartJS>;
+  },
 }
 
 export const Markdown = memo(({ className, children }: MarkdownProps) => {
@@ -103,7 +112,8 @@ export const Markdown = memo(({ className, children }: MarkdownProps) => {
       remarkPlugins={[
         remarkGfm,
         [remarkMath, { singleDollarTextMath: false }],
-        remarkAgentMessage // must run after GFM/Math so it can transform code blocks
+        remarkAgentMessage, // must run after GFM/Math so it can transform code blocks
+        remarkChartjs // must run after GFM/Math so it can transform code blocks
       ]}
       rehypePlugins={[rehypeRaw, [rehypeKatex, rehypeKatexOptions]]}
       components={markdownComponents}

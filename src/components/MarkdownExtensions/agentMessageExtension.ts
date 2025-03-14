@@ -18,7 +18,7 @@ interface JsxNode extends Node {
 
 function transformToJsxNode(codeNode: CodeNode): JsxNode {
   // Escape backticks so we don’t break template literals in raw JSX
-  const escaped = codeNode.value.replace(/`/g, '\\`')
+  const escaped = codeNode.value.replace(/"/g, "'");
 
   return {
     type: 'html',

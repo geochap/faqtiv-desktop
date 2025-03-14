@@ -20,6 +20,7 @@
     "@chatscope/chat-ui-kit-react": "^2.0.3",
     "@chatscope/use-chat": "^3.1.2",
     "bootstrap": "^5.3.3",
+    "chart.js": "^4.4.8",
     "classnames": "^2.5.1",
     "dompurify": "^3.1.7",
     "dotenv": "^16.4.5",
