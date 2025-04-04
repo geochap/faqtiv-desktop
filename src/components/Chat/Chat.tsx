@@ -27,7 +27,7 @@ import {
 } from '@chatscope/use-chat'
 import { MessageContent, TextContent, User } from '@chatscope/use-chat'
 import { Button, Modal } from 'react-bootstrap'
-import { PenBox, X } from 'lucide-react'
+import { PenBox, X, Download } from 'lucide-react'
 import { nanoid } from 'nanoid'
 import DOMPurify from 'dompurify'
 import { AppContext } from '../../hooks/appHook'
@@ -214,6 +214,39 @@ export const Chat = ({ user, chatService }: ChatProps) => {
     setSelectedAgent((prevSelected) => (prevSelected === agentId ? null : agentId))
   }
 
+  const handleDownload = () => {
+    if (!activeConversation) return null;
+
+    // Get the raw messages without any transformation
+    const chatHistory = currentMessages
+      .flatMap((group) => group.messages)
+      .filter((m: ChatMessage<MessageContentType>) => isNotToolCall(user.id, m))
+      .map((m) => ({
+        role: m.senderId === user.id ? "user" : "assistant",
+        content: String(m.content)
+      }));
+
+    // Create the JSON structure
+    const jsonStructure = { messages: chatHistory };
+
+    // Convert to JSON string
+    const jsonString = JSON.stringify(jsonStructure, null, 2);
+
+    // Create blob and download the JSON structure
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chat-${activeConversation.id}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    // Return the JSON string
+    return jsonString;
+  };
+
   return (
     <>
       <MainContainer responsive style={{ position: 'relative' }}>
@@ -342,6 +375,52 @@ export const Chat = ({ user, chatService }: ChatProps) => {
                     <X size={15} />
                   </button>
                 </div>
+              </Message.CustomContent>
+            </Message>
+            <Message
+              model={{
+                type: 'custom',
+                direction: 'incoming',
+                position: 'last'
+              }}
+              style={{ 
+                position: 'sticky',
+                bottom: '0',
+                zIndex: 1,
+                padding: '4px',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center'
+              }}
+            >
+              <Message.CustomContent>
+                <button
+                  onClick={handleDownload}
+                  disabled={!activeConversation}
+                  style={{
+                    padding: '0px',
+                    border: 'none',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: !activeConversation ? '#ccc' : '#007bff',
+                    transition: 'color 0.2s ease-in-out'
+                  }}
+                  onMouseOver={(e) => {
+                    if (activeConversation) {
+                      e.currentTarget.style.color = '#0056b3'
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (activeConversation) {
+                      e.currentTarget.style.color = '#007bff'
+                    }
+                  }}
+                >
+                  <Download size={18} />
+                </button>
               </Message.CustomContent>
             </Message>
           </MessageList>
