@@ -1,3 +1,4 @@
+// ChatService.ts
 import {
   ChatEvent,
   ChatEventHandler,
@@ -18,7 +19,7 @@ import {
   Conversation
 } from '@chatscope/use-chat'
 import { ILocalStorage } from './ChatLocalStorage'
-import { Agent } from './types'
+import { Agent } from '../types'
 import { nanoid } from 'nanoid'
 import DOMPurify from 'dompurify'
 
@@ -49,7 +50,6 @@ interface ChatCompletionMessageToolCall {
 export class ChatService implements IChatService {
   storage?: ILocalStorage
   updateState: UpdateState
-  agents?: Array<Agent>
 
   eventHandlers: { [key: string]: Array<ChatEventHandler<any, any>> } = {}
 
@@ -69,6 +69,16 @@ export class ChatService implements IChatService {
     }
   }
 
+  private agentMap: Map<string, Agent> = new Map()
+
+  setAgentForConversation(conversationId: string, agent: Agent) {
+    this.agentMap.set(conversationId, agent)
+  }
+  
+  getAgentForConversation(conversationId: string): Agent | undefined {
+    return this.agentMap.get(conversationId)
+  }
+  
   addTyping(conversationId: string, agentId: string, isTyping: boolean, content: string) {
     if (this.storage) {
       const typingUser = new TypingUser({
@@ -87,10 +97,6 @@ export class ChatService implements IChatService {
         })
       )
     }
-  }
-
-  setAgents(agents: Array<Agent>) {
-    this.agents = agents
   }
 
   agentStartTyping(conversationId: string, agentId: string, content: string) {
@@ -166,7 +172,7 @@ export class ChatService implements IChatService {
     })
 
     try {
-      const response = await fetch(`${agent.url.replace(/\/+$/, '')}/completions`, {
+      const response = await fetch(`${agent.url.replace(/\/+$|$/, '')}/completions`, {
         method: 'POST',
         mode: 'cors',
         headers: {
@@ -187,7 +193,7 @@ export class ChatService implements IChatService {
 
       const reader = response.body?.getReader()
       let result = ''
-      let buffer: string = '' // Buffer to accumulate incoming chunks
+      let buffer: string = ''
 
       if (reader) {
         let reading = true
@@ -198,13 +204,8 @@ export class ChatService implements IChatService {
             break
           }
 
-          // Decode the current chunk and add it to the buffer
           buffer += new TextDecoder().decode(value)
-
-          // Split buffer on newline characters to process complete messages
           const lines = buffer.split('\n')
-
-          // Keep the last part of the buffer (incomplete chunk) for the next iteration
           buffer = lines.pop() || ''
 
           for (const line of lines) {
@@ -244,12 +245,12 @@ export class ChatService implements IChatService {
       throw error
     }
   }
-
+  
   async sendMessage({ message, conversationId }: SendMessageServiceParams) {
     const conversation = this.getConversation(conversationId)
     if (!conversation) throw new Error('Conversation not found')
 
-    const agent = this.agents?.find((agent) => agent.id === conversation.data.agentId)
+    const agent = this.getAgentForConversation(conversationId)
     if (!agent) throw new Error('Agent not found')
 
     const chatMessage = message as ChatMessage<MessageContentType.TextHtml>
@@ -257,13 +258,10 @@ export class ChatService implements IChatService {
 
     try {
       this.agentStartTyping(conversationId, agent.id, '')
-
-      // Get the conversation history
       const conversationHistory = this.storage?.getMessages(conversationId) || []
 
       const agentResponse = await this.streamCompletion(agent, conversationHistory, (delta) => {
         if ((delta.role === 'assistant' && delta.tool_calls) || delta.role === 'tool') {
-          // Assistant message with tool calls
           const toolMessage = new ChatMessage({
             id: nanoid(),
             senderId: agent.id,
@@ -333,3 +331,4 @@ export class ChatService implements IChatService {
     }
   }
 }
+

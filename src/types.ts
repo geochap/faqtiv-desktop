@@ -12,12 +12,15 @@ export type AgentTask = {
 }
 
 export interface Agent {
-  id: string
-  name: string
-  url: string
-  includeToolMessages?: boolean
-  maxTokens?: number | undefined
-  temperature?: number | undefined
+  id: string;
+  name: string;
+  url: string;
+  includeToolMessages?: boolean;
+  maxTokens?: number;
+  temperature?: number;
+  vectorDbUrl?: string; // NEW
+  knowledgeBaseName?: string; // NEW
+  openAiApiKey?: string;
 }
 
 export type FDConfig = {
@@ -28,4 +31,13 @@ export type FDConfig = {
 export type OpenAIConfig = {
   apiKey: string
   model?: string
+}
+
+export interface QAEntry {
+  id: string;
+  question: string;
+  answer: string;
+  createdAt: string;
+  updatedAt: string;
+  score?: number; // Optional: only present on search hits
 }

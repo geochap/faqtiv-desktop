@@ -1,10 +1,7 @@
 import { createContext, useEffect, useState } from 'react'
 import { Agent, FDConfig } from '../types'
 
-type Page = 'Home' | 'Agents'
-
 export const AppContext = createContext<{
-  activePage: Page
   config?: FDConfig
   agents: Agent[]
   setConfig: (config: FDConfig) => void
@@ -12,7 +9,7 @@ export const AppContext = createContext<{
   deleteAgent: (agentId: string) => Promise<void | string>
   updateAgent: (agent: Agent) => Promise<void | string>
 }>({
-  activePage: 'Home',
+  config: undefined,
   agents: [],
   setConfig: () => {
     throw new Error('Not implemented')
@@ -30,7 +27,6 @@ export const AppContext = createContext<{
 
 const useAppHook = () => {
   const [isInit, setIsInit] = useState(false)
-  const [activePage, setActivePage] = useState<Page>('Home')
   const [config, setConfig] = useState<FDConfig>()
   const [agents, setAgents] = useState<Agent[]>([])
 
@@ -103,15 +99,12 @@ const useAppHook = () => {
         }
       })
     }
-    window.ipcRenderer.on('change-page', (_event, page) => {
-      setActivePage(page)
-    })
+
     setIsInit(true)
   }, [isInit, config])
 
   return {
     isInit,
-    activePage,
     config,
     agents,
     setConfig,

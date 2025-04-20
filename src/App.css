@@ -151,3 +151,22 @@
   background-color: crimson !important;
   color: white !important;
 }
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #c0c0c0;
+  border-radius: 4px;
+  border: 1px solid #999;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #999;
+}

@@ -1,1 +1,1 @@
-export * from './Agents'
+export * from './AgentsPage'

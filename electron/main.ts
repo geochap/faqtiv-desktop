@@ -5,6 +5,8 @@ import path from 'node:path'
 import fs from 'node:fs'
 import yaml from 'js-yaml'
 import dotenv from 'dotenv'
+import { KnowledgeBaseClient } from '../src/services/KnowledgeBaseClient'; 
+import { Agent } from '../src/types';
 
 dotenv.config()
 
@@ -132,22 +134,13 @@ ipcMain.on('app-init', (event) => {
 })
 
 function setupMenu() {
-  const template = [
+  const template: Electron.MenuItemConstructorOptions[] = [
     {
-      label: 'Go',
+      label: 'File',
       submenu: [
-        {
-          label: 'Home',
-          click: () => {
-            win?.webContents.send('change-page', 'Home')
-          }
-        },
-        {
-          label: 'Agents',
-          click: () => {
-            win?.webContents.send('change-page', 'Agents')
-          }
-        },
+        { label: 'Import Agent...' },
+        { label: 'Export Agent...' },
+        { type: 'separator' },
         { role: 'quit' }
       ]
     },
@@ -162,13 +155,19 @@ function setupMenu() {
       ]
     },
     {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' }
+      ]
+    },
+    {
       label: 'Help',
       submenu: [
         {
           label: 'About',
-          click: () => {
-            createAboutWindow()
-          }
+          click: () => createAboutWindow()
         }
       ]
     }
@@ -181,7 +180,6 @@ function setupMenu() {
     })
   }
 
-  //@ts-expect-error won't define all properties
   const menu = Menu.buildFromTemplate(template)
   Menu.setApplicationMenu(menu)
 }
@@ -224,6 +222,64 @@ ipcMain.on('delete-agent', async (event, agentId) => {
     event.reply('delete-agent-reply', { error: error.message })
   }
 })
+
+
+ipcMain.handle('kb:search', async (_, agent: Agent, query: string) => {
+  try {
+    const client = new KnowledgeBaseClient(agent);
+    return await client.search(query);
+  } catch (err: any) {
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('kb:recent', async (_, agent: Agent) => {
+  try {
+    const client = new KnowledgeBaseClient(agent);
+    return await client.getRecent();
+  } catch (err: any) {
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('kb:insert', async (_, agent: Agent, question: string, answer: string) => {
+  try {
+    const client = new KnowledgeBaseClient(agent);
+    const id = await client.insertQA(agent.id, question, answer);
+    return { id };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('kb:getById', async (_, agent: Agent, id: string) => {
+  try {
+    const client = new KnowledgeBaseClient(agent);
+    return await client.getById(id);
+  } catch (err: any) {
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('kb:update', async (_, agent: Agent, id: string, updates: any) => {
+  try {
+    const client = new KnowledgeBaseClient(agent);
+    await client.updateQA(id, updates);
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('kb:delete', async (_, agent: Agent, id: string) => {
+  try {
+    const client = new KnowledgeBaseClient(agent);
+    await client.deleteQA(id);
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+});
 
 // Function to update the config file
 async function updateConfigFile() {

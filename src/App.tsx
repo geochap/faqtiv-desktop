@@ -1,89 +1,82 @@
-import 'bootstrap/dist/css/bootstrap.min.css'
-import './App.css'
+import 'bootstrap/dist/css/bootstrap.min.css';
+import './App.css';
+import '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css';
+
+import { Container } from 'react-bootstrap';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import avatar from './assets/react.svg';
+
+import useAppHook, { AppContext } from './hooks/appHook';
+import NavigationListener from './components/Layout/NavigationListener';
+
+import AgentsPage from './components/Agents/AgentsPage';
+import AgentChatView from './components/Agents/AgentChatView';
+import AgentConfigView from './components/Agents/AgentConfigView';
+import AgentTrainView from './components/Agents/AgentTrainView';
+import AgentTrainingDetailRoute from './components/Agents/AgentTrainingDetailRoute';
+
+import { chatService, chatStorage } from './services/ChatServiceInstance';
+
 import {
   ChatProvider,
-  IStorage,
   Presence,
-  UpdateState,
   User,
   UserStatus
-} from '@chatscope/use-chat'
-import { Chat } from './components/Chat/Chat'
-import { nanoid } from 'nanoid'
-import '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css'
-import avatar from './assets/react.svg'
-import { AutoDraft } from '@chatscope/use-chat/dist/enums/AutoDraft'
-import useAppHook, { AppContext } from './hooks/appHook'
-import { ChatService } from './ChatService'
-import { ChatLocalStorage } from './ChatLocalStorage'
-import Agents from './components/Agents/Agents'
-import { useEffect, useState } from 'react'
+} from '@chatscope/use-chat';
 
-const messageIdGenerator = () => nanoid()
-const groupIdGenerator = () => nanoid()
-const storage = new ChatLocalStorage({ groupIdGenerator, messageIdGenerator })
+import { AutoDraft } from '@chatscope/use-chat/dist/enums/AutoDraft';
+
+// Chat setup
 
 const user = new User({
   id: 'Me',
-  presence: new Presence({ status: UserStatus.Available, description: '' }),
-  firstName: '',
-  lastName: '',
   username: 'Me',
-  email: '',
-  avatar,
-  bio: ''
-})
+  presence: new Presence({ status: UserStatus.Available }),
+  avatar
+});
+
 const assistantUser = new User({
   id: 'assistant',
-  presence: new Presence({ status: UserStatus.Available, description: '' }),
-  firstName: '',
-  lastName: '',
   username: 'assistant',
-  email: '',
-  avatar,
-  bio: ''
-})
-storage.addUser(user)
-storage.addUser(assistantUser)
+  presence: new Presence({ status: UserStatus.Available }),
+  avatar
+});
+
+chatStorage.addUser(user);
+chatStorage.addUser(assistantUser);
 
 function App() {
-  const provider = useAppHook()
-  const [chatService, setChatService] = useState<ChatService | null>(null)
-
-  useEffect(() => {
-    if (!provider.agents) return
-
-    const serviceFactory = (storageInstance: IStorage, updateState: UpdateState) => {
-      const service = new ChatService(storageInstance, updateState)
-      setChatService(service)
-      return service
-    }
-    serviceFactory(storage, () => {})
-  }, [provider.agents])
+  const provider = useAppHook();
 
   return (
     <AppContext.Provider value={provider}>
-      {provider.activePage === 'Home' && (
-        <div className="overflow-hidden w-100 h-100">
-          {chatService && (
-            <ChatProvider
-              serviceFactory={() => chatService}
-              storage={storage}
-              config={{
-                typingThrottleTime: 250,
-                typingDebounceTime: 900,
-                debounceTyping: true,
-                autoDraft: AutoDraft.Save | AutoDraft.Restore
-              }}
-            >
-              <Chat user={user} chatService={chatService} />
-            </ChatProvider>
-          )}
-        </div>
-      )}
-      {provider.activePage === 'Agents' && <Agents />}
+      <ChatProvider
+        storage={chatStorage}
+        serviceFactory={() => chatService}
+        config={{
+          typingThrottleTime: 250,
+          typingDebounceTime: 900,
+          debounceTyping: true,
+          autoDraft: AutoDraft.Save | AutoDraft.Restore
+        }}
+      >
+        <NavigationListener />
+        <Container fluid className="p-4">
+          <Routes>
+            <Route path="/" element={<Navigate to="/agents" replace />} />
+
+            {/* Sidebar layout with nested views */}
+            <Route path="/agents" element={<AgentsPage />}>
+              <Route path=":agentId/chat" element={<AgentChatView />} />
+              <Route path=":agentId/config" element={<AgentConfigView />} />
+              <Route path=":agentId/train" element={<AgentTrainView />} />
+              <Route path=":agentId/training/:entryId" element={<AgentTrainingDetailRoute />} />
+            </Route>
+          </Routes>
+        </Container>
+      </ChatProvider>
     </AppContext.Provider>
-  )
+  );
 }
 
-export default App
+export default App;
