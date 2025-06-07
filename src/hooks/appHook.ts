@@ -6,8 +6,8 @@ export const AppContext = createContext<{
   agents: Agent[]
   setConfig: (config: FDConfig) => void
   addAgent: (agent: Agent) => Promise<void | string>
-  deleteAgent: (agentId: string) => Promise<void | string>
-  updateAgent: (agent: Agent) => Promise<void | string>
+  deleteAgent: (agentId: string) => Promise<void>;
+  updateAgent: (agent: Agent) => Promise<void>;
 }>({
   config: undefined,
   agents: [],
@@ -50,35 +50,35 @@ const useAppHook = () => {
     })
   }
 
-  const deleteAgent = (agentId: string) => {
-    return new Promise<void | string>((resolve, reject) => {
-      window.ipcRenderer.send('delete-agent', agentId)
+  const deleteAgent = (agentId: string): Promise<void> => {
+    return new Promise<void>((resolve, reject) => {
+      window.ipcRenderer.send('delete-agent', agentId);
       window.ipcRenderer.once('delete-agent-reply', (_event, response) => {
         if (response.error) {
-          console.error('Failed to delete agent:', response.error)
-          reject(response.error)
+          console.error('Failed to delete agent:', response.error);
+          reject(new Error(response.error));
         } else {
-          setAgents((prevAgents) => prevAgents.filter((agent) => agent.id !== agentId))
-          resolve()
+          setAgents((prevAgents) => prevAgents.filter((agent) => agent.id !== agentId));
+          resolve();
         }
-      })
-    })
-  }
+      });
+    });
+  };
 
-  const updateAgent = (agent: Agent) => {
-    return new Promise<void | string>((resolve, reject) => {
-      window.ipcRenderer.send('update-agent', agent)
+  const updateAgent = (agent: Agent): Promise<void> => {
+    return new Promise<void>((resolve, reject) => {
+      window.ipcRenderer.send('update-agent', agent);
       window.ipcRenderer.once('update-agent-reply', (_event, response) => {
         if (response.error) {
-          console.error('Failed to update agent:', response.error)
-          reject(response.error)
+          console.error('Failed to update agent:', response.error);
+          reject(new Error(response.error)); // reject with an Error object
         } else {
-          setAgents((prevAgents) => prevAgents.map((a) => (a.id === agent.id ? agent : a)))
-          resolve()
+          setAgents((prevAgents) => prevAgents.map((a) => (a.id === agent.id ? agent : a)));
+          resolve();
         }
-      })
-    })
-  }
+      });
+    });
+  };
 
   useEffect(() => {
     window.ipcRenderer.removeAllListeners('open-agent-settings')

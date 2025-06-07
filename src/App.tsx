@@ -12,8 +12,10 @@ import NavigationListener from './components/Layout/NavigationListener';
 import AgentsPage from './components/Agents/AgentsPage';
 import AgentChatView from './components/Agents/AgentChatView';
 import AgentConfigView from './components/Agents/AgentConfigView';
-import AgentTrainView from './components/Agents/AgentTrainView';
-import AgentTrainingDetailRoute from './components/Agents/AgentTrainingDetailRoute';
+import AgentTrainView from './components/Agents/KB/AgentTrainView';
+import AgentTaskView from './components/Agents/Tasks/AgentTaskView';
+import AgentTrainingDetailRoute from './components/Agents/KB/AgentTrainingDetailRoute';
+import AgentTaskDetailRoute from './components/Agents/Tasks/AgentTaskDetailRoute';
 
 import { chatService, chatStorage } from './services/ChatServiceInstance';
 
@@ -70,8 +72,11 @@ function App() {
               <Route path=":agentId/chat" element={<AgentChatView />} />
               <Route path=":agentId/config" element={<AgentConfigView />} />
               <Route path=":agentId/train" element={<AgentTrainView />} />
+              <Route path=":agentId/tasks" element={<AgentTaskView />} />
+              <Route path=":agentId/tasks/:taskId" element={<AgentTaskDetailRoute />} />              
               <Route path=":agentId/training/:entryId" element={<AgentTrainingDetailRoute />} />
             </Route>
+            <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </Container>
       </ChatProvider>

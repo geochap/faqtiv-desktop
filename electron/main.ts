@@ -5,7 +5,8 @@ import path from 'node:path'
 import fs from 'node:fs'
 import yaml from 'js-yaml'
 import dotenv from 'dotenv'
-import { KnowledgeBaseClient } from '../src/services/KnowledgeBaseClient'; 
+import { KnowledgeBaseClient } from '../src/services/KBClient'; 
+import { TaskClient } from '../src/services/TaskClient';
 import { Agent } from '../src/types';
 
 dotenv.config()
@@ -227,7 +228,7 @@ ipcMain.on('delete-agent', async (event, agentId) => {
 ipcMain.handle('kb:search', async (_, agent: Agent, query: string) => {
   try {
     const client = new KnowledgeBaseClient(agent);
-    return await client.search(query);
+    return await client.search(query, 20);
   } catch (err: any) {
     return { error: err.message };
   }
@@ -288,3 +289,60 @@ async function updateConfigFile() {
 
   fs.writeFileSync(configPath, yaml.dump(config), 'utf8')
 }
+
+ipcMain.handle('tasks:search', async (_event, agent: Agent, query: string) => {
+  try {
+    const client = new TaskClient(agent);
+    return await client.search(query);
+  } catch (err: any) {
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('tasks:recent', async (_event, agent: Agent) => {
+  try {
+    const client = new TaskClient(agent);
+    return await client.getRecent();
+  } catch (err: any) {
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('tasks:insert', async (_event, agent: Agent, description: string) => {
+  try {
+    const client = new TaskClient(agent);
+    const id = await client.insertTask(agent.id, description);
+    return { id };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('tasks:getById', async (_event, agent: Agent, id: string) => {
+  try {
+    const client = new TaskClient(agent);
+    return await client.getById(id);
+  } catch (err: any) {
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('tasks:update', async (_event, agent: Agent, id: string, updates: any) => {
+  try {
+    const client = new TaskClient(agent);
+    await client.updateTask(id, updates);
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('tasks:delete', async (_event, agent: Agent, id: string) => {
+  try {
+    const client = new TaskClient(agent);
+    await client.deleteTask(id);
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+});

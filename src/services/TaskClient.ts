@@ -1,15 +1,15 @@
 import { Client } from '@opensearch-project/opensearch';
-import { Agent, QAEntry } from '../types';
+import { Agent, TaskEntry } from '../types';
 import { OpenAIService } from './OpenAIService';
 
-export class KnowledgeBaseClient {
+export class TaskClient {
   private client: Client;
   private indexName: string;
   private openai: OpenAIService;
 
   constructor(agent: Agent) {
-    if (!agent.vectorDbUrl || !agent.knowledgeBaseName) {
-      throw new Error('Agent is missing vector DB config');
+    if (!agent.vectorDbUrl || !agent.taskIndexName) {
+      throw new Error('Agent is missing vector DB config for tasks');
     }
 
     if (!agent.openAiApiKey) {
@@ -17,33 +17,33 @@ export class KnowledgeBaseClient {
     }
 
     this.client = new Client({ node: agent.vectorDbUrl });
-    this.indexName = agent.knowledgeBaseName;
+    this.indexName = agent.taskIndexName;
     this.openai = new OpenAIService(agent.openAiApiKey);
   }
 
   async ensureIndexExists(): Promise<void> {
     const existsResponse = await this.client.indices.exists({ index: this.indexName });
-  
+
     if (!existsResponse.body) {
       await this.client.indices.create({
         index: this.indexName,
         body: {
           settings: {
-            index: {
-              knn: true
-            }
+            index: { knn: true }
           },
           mappings: {
             properties: {
-              question: { type: 'text' },
-              answer: { type: 'text' },
-              embedding: {
+              task: { type: 'text' },
+              code: { type: 'text' },
+              taskEmbedding: {
                 type: 'knn_vector',
                 dimension: 1536
               },
               agentId: { type: 'keyword' },
               createdAt: { type: 'date' },
-              updatedAt: { type: 'date' }
+              updatedAt: { type: 'date' },
+              evalResult: { type: 'object' },
+              dataDictionary: { type: 'object' }
             }
           }
         }
@@ -51,7 +51,7 @@ export class KnowledgeBaseClient {
     }
   }
 
-  async search(text: string, topK = 5): Promise<QAEntry[]> {
+  async search(text: string, topK = 20): Promise<TaskEntry[]> {
     const embedding = await this.openai.getEmbedding(text);
     await this.ensureIndexExists();
 
@@ -61,7 +61,7 @@ export class KnowledgeBaseClient {
         size: topK,
         query: {
           knn: {
-            embedding: {
+            taskEmbedding: {
               vector: embedding,
               k: topK
             }
@@ -72,15 +72,17 @@ export class KnowledgeBaseClient {
 
     return body.hits.hits.map((hit: any) => ({
       id: hit._id,
-      question: hit._source.question,
-      answer: hit._source.answer,
+      description: hit._source.task,
+      code: hit._source.code,
       createdAt: hit._source.createdAt,
       updatedAt: hit._source.updatedAt,
+      evalResult: hit._source.evalResult,
+      dataDictionary: hit._source.dataDictionary,
       score: hit._score
     }));
   }
 
-  async getRecent(limit = 10): Promise<QAEntry[]> {
+  async getRecent(limit = 10): Promise<TaskEntry[]> {
     await this.ensureIndexExists();
 
     const { body } = await this.client.search({
@@ -94,15 +96,23 @@ export class KnowledgeBaseClient {
 
     return body.hits.hits.map((hit: any) => ({
       id: hit._id,
-      question: hit._source.question,
-      answer: hit._source.answer,
+      description: hit._source.task,
+      code: hit._source.code,
       createdAt: hit._source.createdAt,
-      updatedAt: hit._source.updatedAt
+      updatedAt: hit._source.updatedAt,
+      evalResult: hit._source.evalResult,
+      dataDictionary: hit._source.dataDictionary
     }));
   }
 
-  async insertQA(agentId: string, question: string, answer: string): Promise<string> {
-    const embedding = await this.openai.getEmbedding(question);
+  async insertTask(
+    agentId: string,
+    description: string,
+    code?: string,
+    evalResult?: any,
+    dataDictionary?: any
+  ): Promise<string> {
+    const embedding = await this.openai.getEmbedding(description);
     await this.ensureIndexExists();
 
     const now = new Date().toISOString();
@@ -111,9 +121,11 @@ export class KnowledgeBaseClient {
       index: this.indexName,
       body: {
         agentId,
-        question,
-        answer,
-        embedding,
+        task: description,
+        code,
+        taskEmbedding: embedding,
+        evalResult,
+        dataDictionary,
         createdAt: now,
         updatedAt: now
       },
@@ -123,18 +135,18 @@ export class KnowledgeBaseClient {
     return res.body._id;
   }
 
-  async updateQA(id: string, updates: { question?: string; answer?: string }): Promise<void> {
+  async updateTask(id: string, updates: { description?: string; code?: string }): Promise<void> {
     const body: any = {
       updatedAt: new Date().toISOString()
     };
 
-    if (updates.question) {
-      body.question = updates.question;
-      body.embedding = await this.openai.getEmbedding(updates.question);
+    if (updates.description) {
+      body.task = updates.description;
+      body.taskEmbedding = await this.openai.getEmbedding(updates.description);
     }
 
-    if (updates.answer) {
-      body.answer = updates.answer;
+    if (updates.code) {
+      body.code = updates.code;
     }
 
     await this.client.update({
@@ -145,7 +157,7 @@ export class KnowledgeBaseClient {
     });
   }
 
-  async deleteQA(id: string): Promise<void> {
+  async deleteTask(id: string): Promise<void> {
     await this.client.delete({
       index: this.indexName,
       id,
@@ -153,7 +165,7 @@ export class KnowledgeBaseClient {
     });
   }
 
-  async getById(id: string): Promise<QAEntry | null> {
+  async getById(id: string): Promise<TaskEntry | null> {
     try {
       const res = await this.client.get({
         index: this.indexName,
@@ -164,11 +176,12 @@ export class KnowledgeBaseClient {
 
       return {
         id,
-        question: source?.question,
-        answer: source?.answer,
+        description: source?.task,
+        code: source?.code,
         createdAt: source?.createdAt,
         updatedAt: source?.updatedAt,
-        score: source?.score // optional
+        evalResult: source?.evalResult,
+        dataDictionary: source?.dataDictionary
       };
     } catch (err: any) {
       if (err.meta?.statusCode === 404) return null;

@@ -18,6 +18,7 @@ const AgentDetails = ({ agent, onUpdateAgent, onDeleteAgent }: AgentDetailsProps
     temperature: agent.temperature,
     vectorDbUrl: agent.vectorDbUrl ?? '',
     knowledgeBaseName: agent.knowledgeBaseName ?? '',
+    taskIndexName: agent.taskIndexName ?? '', // ✅ NEW
     openAiApiKey: agent.openAiApiKey ?? ''
   });
 
@@ -35,6 +36,7 @@ const AgentDetails = ({ agent, onUpdateAgent, onDeleteAgent }: AgentDetailsProps
       temperature: agent.temperature,
       vectorDbUrl: agent.vectorDbUrl ?? '',
       knowledgeBaseName: agent.knowledgeBaseName ?? '',
+      taskIndexName: agent.taskIndexName ?? '', // ✅ NEW
       openAiApiKey: agent.openAiApiKey ?? ''
     });
     setIsChanged(false);
@@ -53,6 +55,7 @@ const AgentDetails = ({ agent, onUpdateAgent, onDeleteAgent }: AgentDetailsProps
         next.temperature !== agent.temperature ||
         next.vectorDbUrl !== (agent.vectorDbUrl ?? '') ||
         next.knowledgeBaseName !== (agent.knowledgeBaseName ?? '') ||
+        next.taskIndexName !== (agent.taskIndexName ?? '') || // ✅ NEW
         next.openAiApiKey !== (agent.openAiApiKey ?? '');
 
       setIsChanged(changed);
@@ -119,6 +122,16 @@ const AgentDetails = ({ agent, onUpdateAgent, onDeleteAgent }: AgentDetailsProps
             placeholder="Optional"
             value={form.knowledgeBaseName}
             onChange={(e) => handleChange('knowledgeBaseName', e.target.value)}
+          />
+        </Form.Group>
+
+        <Form.Group className="mb-3" controlId="agentTaskIndexName">
+          <Form.Label>Task Index Name</Form.Label>
+          <Form.Control
+            type="text"
+            placeholder="Optional"
+            value={form.taskIndexName}
+            onChange={(e) => handleChange('taskIndexName', e.target.value)}
           />
         </Form.Group>
 

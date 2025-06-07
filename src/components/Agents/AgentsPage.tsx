@@ -24,11 +24,9 @@ const AgentsPage = () => {
       <Sidebar
         agents={agents}
         selectedAgentId={agentId || null}
-        onSelectAgent={(id) => {}} // handled by navigation now
-        activeSection={null}       // no longer used
-        onSelectSection={() => {}} // no longer used
+        onSelectAgent={() => {}} // handled by navigation now
       />
-      <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+      <div style={{ flex: 1, minWidth: 0, minHeight: 0, overflow: 'visible' }}>
         <Outlet />
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { useContext } from 'react';
-import { AppContext } from '../../hooks/appHook';
+import { AppContext } from '../../../hooks/appHook';
 import AgentTrainingDetail from './AgentTrainingDetail';
 
 const AgentTrainingDetailRoute = () => {

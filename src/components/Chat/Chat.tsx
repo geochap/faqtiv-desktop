@@ -39,7 +39,6 @@ const Chat = ({ agent, conversationId }: ChatProps) => {
     activeConversation,
     setActiveConversation,
     sendMessage,
-    setCurrentUser,
     getConversation
   } = useChat()
 
@@ -135,7 +134,7 @@ const Chat = ({ agent, conversationId }: ChatProps) => {
       senderId: userId,
       direction: MessageDirection.Outgoing,
       status: MessageStatus.Sent,
-      data: { agentId: agent.id } // attach agentId for routing
+      // data: { agentId: agent.id } // attach agentId for routing
     })
 
     sendMessage({

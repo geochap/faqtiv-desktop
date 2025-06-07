@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { ListGroup, Collapse, Button, Modal } from 'react-bootstrap';
 import { Plus, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
-import { useChat, Conversation, ConversationRole, Participant } from '@chatscope/use-chat';
+import { useChat, Conversation, Participant } from '@chatscope/use-chat';
 import AddAgentModal from '../Agents/AddAgentModal';
 import { nanoid } from 'nanoid';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Agent } from '../../types'; // Ensure this type is defined
 
-const Sidebar = ({
-  agents,
-  selectedAgentId,
-  onSelectAgent
-}) => {
+type SidebarProps = {
+  agents: Agent[];
+  selectedAgentId: string | null;
+  onSelectAgent: (id: string) => void;
+};
+
+const Sidebar = ({ agents, selectedAgentId, onSelectAgent }: SidebarProps) => {
   const {
     conversations,
     activeConversation,
@@ -19,18 +22,17 @@ const Sidebar = ({
     addConversation
   } = useChat();
 
-  const [openAgentId, setOpenAgentId] = useState(null);
+  const [openAgentId, setOpenAgentId] = useState<string | null>(null);
   const [showAddAgentModal, setShowAddAgentModal] = useState(false);
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { agentId } = useParams();
 
-  const handleNewConversation = (agentId) => {
+  const handleNewConversation = (agentId: string) => {
     const newConversation = new Conversation({
       id: nanoid(),
-      participants: [new Participant({ id: 'Me', role: ConversationRole.User })],
+      participants: [new Participant({ id: 'Me' })],
       data: { agentId },
       description: 'Untitled'
     });
@@ -39,7 +41,8 @@ const Sidebar = ({
     navigate(`/agents/${agentId}/chat`);
   };
 
-  const isSectionActive = (section) => location.pathname.endsWith(`/${section}`);
+  const isSectionActive = (section: string): boolean =>
+    location.pathname.endsWith(`/${section}`);
 
   return (
     <div style={{ width: '240px' }}>
@@ -93,7 +96,7 @@ const Sidebar = ({
                 <Collapse in={openAgentId === agent.id}>
                   <div className="mb-2">
                     <div className="mt-1 ms-3">
-                      {['chat', 'config', 'train'].map((section) => (
+                      {['chat', 'config', 'train', 'tasks'].map((section) => (
                         <div key={section}>
                           <div
                             className={`sidebar-link d-flex align-items-center gap-1 ${
@@ -112,7 +115,9 @@ const Sidebar = ({
                                 ? 'Chat'
                                 : section === 'config'
                                 ? 'Configure'
-                                : 'Knowledge Base'}
+                                : section === 'train'
+                                ? 'Knowledge Base'
+                                : 'Tasks'}
                             </span>
                           </div>
 
@@ -179,7 +184,11 @@ const Sidebar = ({
         })}
       </ListGroup>
 
-      <AddAgentModal show={showAddAgentModal} handleClose={() => setShowAddAgentModal(false)} />
+      <AddAgentModal
+        show={showAddAgentModal}
+        handleClose={() => setShowAddAgentModal(false)}
+        handleAddAgent={async (_agent) => {}}
+      />
 
       <Modal show={!!confirmDeleteId} onHide={() => setConfirmDeleteId(null)}>
         <Modal.Header closeButton>
@@ -193,8 +202,10 @@ const Sidebar = ({
           <Button
             variant="danger"
             onClick={() => {
-              removeConversation(confirmDeleteId);
-              setConfirmDeleteId(null);
+              if (confirmDeleteId) {
+                removeConversation(confirmDeleteId, true);
+                setConfirmDeleteId(null);
+              }
             }}
           >
             Delete

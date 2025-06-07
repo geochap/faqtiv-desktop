@@ -97,7 +97,7 @@ const markdownComponents = {
     return <AgentMessage msg={msg} {...rest} />
   },
   chartjs: (props: any) => {
-    const { node, ...rest } = props;
+    const { node } = props;
     const rawJson = node.children?.map((child: any) => child.value).join('').trim() || '{}';
 
     console.log(rawJson)

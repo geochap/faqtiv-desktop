@@ -18,8 +18,9 @@ export interface Agent {
   includeToolMessages?: boolean;
   maxTokens?: number;
   temperature?: number;
-  vectorDbUrl?: string; // NEW
-  knowledgeBaseName?: string; // NEW
+  vectorDbUrl?: string; 
+  knowledgeBaseName?: string;
+  taskIndexName?: string;
   openAiApiKey?: string;
 }
 
@@ -33,11 +34,21 @@ export type OpenAIConfig = {
   model?: string
 }
 
-export interface QAEntry {
+export type QAEntry = {
   id: string;
-  question: string;
-  answer: string;
+  text: string;
   createdAt: string;
   updatedAt: string;
-  score?: number; // Optional: only present on search hits
-}
+  score?: number;
+};
+
+export type TaskEntry = {
+  id: string;
+  description: string;
+  code?: string;
+  createdAt: string;
+  updatedAt?: string;
+  score?: number;
+  evalResult?: any;
+  dataDictionary?: any;
+};
